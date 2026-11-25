@@ -483,7 +483,6 @@
     <input id="unlockHex" value="8dc4f3ee" autocomplete="off" spellcheck="false">
   </div>
 
-  <div class="field"><label for="scanMode">Bluetooth discovery method</label><select id="scanMode" class="timer-select" style="width:100%"></select></div>
   <button class="btn" id="btnConnect">Connect</button>
   <button class="btn" id="btnPair" style="background:#4CAF50">Pair with purifier</button>
   <div id="keyFound" style="display:none;margin-top:10px;padding:11px 13px;border-radius:8px;
@@ -876,7 +875,7 @@ function chunk(data,seq){
 
 
 /* screen shims — the UI layer owns the actual screens */
-function showConnectUI(){ $('btnConnect').disabled=false; screen('setup'); }
+function showConnectUI(){ screen('setup'); }
 function showLiveUI(){ screen('main'); }
 function props(c){
   const p=c.properties||{}; const f=[];
@@ -987,10 +986,7 @@ const STRATEGIES = [
   { name:'all devices, NO optionalServices (diagnostic)',
     opts:()=>({ acceptAllDevices:true }) },
 ];
-let stratIdx = 2;
-STRATEGIES.forEach((st,i)=>{ const o=document.createElement('option'); o.value=i; o.textContent=st.name; document.getElementById('scanMode').appendChild(o); });
-document.getElementById('scanMode').value=String(stratIdx);
-document.getElementById('scanMode').onchange=e=>{stratIdx=Number(e.target.value);};
+let stratIdx = 0;
 
 function pickDevice(){
   if(!navigator.bluetooth) throw new Error('navigator.bluetooth missing — use Bluefy on iOS or Chrome on Android');
@@ -1167,7 +1163,6 @@ async function connect(userInitiated, prePicked){
       if(stratIdx<STRATEGIES.length)
         log('in','   next tap will try ['+(stratIdx+1)+'/'+STRATEGIES.length+'] '+STRATEGIES[stratIdx].name);
       else { stratIdx=0; log('er','   all variants exhausted — wrapping to the first'); }
-      $('scanMode').value=String(stratIdx);
       S.giveUp=true; showConnectUI(); return;
     }
     const cancelled = /NotFoundError|cancel|chooser|user/i.test(d);
@@ -1937,23 +1932,14 @@ if(window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches){
 }
 
 /* ── bindings ───────────────────────────────────────────────────────── */
-$('btnConnect').onclick=async()=>{
+$('btnConnect').onclick=()=>{
   const k=$('keyIn').value.trim();
-  try { if(atob(k).length!==16) throw new Error('invalid key'); }
-  catch(e){ toast('Local key must be 16 bytes of base64',true); return; }
-  let p;
-  try {
-    clearTimeout(reconnectT); S.giveUp=true;
-    if(S.dev){ S.dev.removeEventListener('gattserverdisconnected',onDrop); if(S.dev.gatt.connected) S.dev.gatt.disconnect(); S.dev=null; }
-    p=pickDevice();
-    p.catch(()=>{});
-    $('btnConnect').disabled=true;
-    screen('connecting'); setLink('Connecting'); setLinkText('');
-    await connect(true,p);
-  } catch(e){
-    log('er','!! '+describe(e)); explain(e); toast(errText(e),true);
-    showConnectUI();
-  } finally { $('btnConnect').disabled=false; }
+  if(!k){ toast('No key — use “Pair with purifier”',true); return; }
+  let p; try{ p=pickDevice(); }
+  catch(e){ log('er','!! '+describe(e)); explain(e); toast(errText(e),true); return; }
+  p.catch(()=>{});
+  screen('connecting'); setLink('Connecting'); setLinkText('');
+  connect(true,p);
 };
 
 /* Pairing picker. The beacon that carries the key comes from a DIFFERENT
@@ -2043,7 +2029,7 @@ refreshShareUrl();
 screen('setup');
 paint();
 
-log('hd','── Guardian APZ-451 controller v25-retry');
+log('hd','── Guardian APZ-451 controller v24');
 log('in','   main service '+SVC);
 log('in','   functionNumber 0x'+FUNCTION_NUMBER.toString(16).toUpperCase().padStart(8,'0'));
 (async function selfCheck(){
