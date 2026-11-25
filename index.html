@@ -476,13 +476,14 @@
   </div>
   <div class="field">
     <label for="devUuid">Device UUID (advertised)</label>
-    <input id="devUuid" value="00000000-24f6-4000-a000-0b8fe1cf4efd" autocomplete="off" spellcheck="false">
+    <input id="devUuid" value="00000000-24f6-4000-a000-0fedf19130a2" autocomplete="off" spellcheck="false">
   </div>
   <div class="field" id="unlockField">
     <label for="unlockHex">Session unlock (f000)</label>
     <input id="unlockHex" value="8dc4f3ee" autocomplete="off" spellcheck="false">
   </div>
 
+  <div class="field"><label for="scanMode">Bluetooth discovery method</label><select id="scanMode" class="timer-select" style="width:100%"></select></div>
   <button class="btn" id="btnConnect">Connect</button>
   <button class="btn" id="btnPair" style="background:#4CAF50">Pair with purifier</button>
   <div id="keyFound" style="display:none;margin-top:10px;padding:11px 13px;border-radius:8px;
@@ -715,7 +716,7 @@ const ADV_FEF8 = sig(0xFEF8);   // ZEDeviceManagerImpl     — what this unit ad
    The other Aplix unit on this network, 00:1c:4d:4b:18:da, advertises
    ...0a1312c1f600 and does NOT accept this key — earlier builds filtered
    onto that one and could never authenticate. */
-const DEFAULT_MASTER_UUID = '00000000-24f6-4000-a000-0b8fe1cf4efd';
+const DEFAULT_MASTER_UUID = '00000000-24f6-4000-a000-0fedf19130a2';
 function masterUuid(){
   const v = ($('devUuid') && $('devUuid').value.trim().toLowerCase()) || '';
   return /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(v) ? v : DEFAULT_MASTER_UUID;
@@ -896,7 +897,6 @@ const S = {
   state:{power:false,auto:false,wind:0,timer:0,uv:false,aq:null,filt:0,bulb:0}
 };
 let poll=null, keepAlive=null, reconnectT=null;
-let connecting=false;
 
 /* ── GATT operation queue ───────────────────────────────────────────────
    CoreBluetooth allows exactly one outstanding request-response operation
@@ -987,7 +987,10 @@ const STRATEGIES = [
   { name:'all devices, NO optionalServices (diagnostic)',
     opts:()=>({ acceptAllDevices:true }) },
 ];
-let stratIdx = 0;
+let stratIdx = 2;
+STRATEGIES.forEach((st,i)=>{ const o=document.createElement('option'); o.value=i; o.textContent=st.name; document.getElementById('scanMode').appendChild(o); });
+document.getElementById('scanMode').value=String(stratIdx);
+document.getElementById('scanMode').onchange=e=>{stratIdx=Number(e.target.value);};
 
 function pickDevice(){
   if(!navigator.bluetooth) throw new Error('navigator.bluetooth missing — use Bluefy on iOS or Chrome on Android');
@@ -1002,15 +1005,13 @@ function pickDevice(){
 async function connect(userInitiated, prePicked){
   if(!navigator.bluetooth){ toast('No Web Bluetooth — use Bluefy on iOS or Chrome on Android',true); return; }
 
-  if(connecting) return;
-  connecting=true;
   if(userInitiated){
     let raw;
     try{
       raw=Uint8Array.from(atob($('keyIn').value.trim()),c=>c.charCodeAt(0));
       if(raw.length!==16) throw 0;
-    }catch(e){ toast('Local key must be 16 bytes of base64',true); connecting=false; showConnectUI(); return; }
-    try{ await importKey(raw); }catch(e){ connecting=false; showConnectUI(); toast(errText(e),true); return; }
+    }catch(e){ toast('Local key must be 16 bytes of base64',true); return; }
+    await importKey(raw);
     S.giveUp=false; S.retries=0;
   }
 
@@ -1018,8 +1019,6 @@ async function connect(userInitiated, prePicked){
   try{
     if(userInitiated){
       setLink('Scanning','busy'); $('btnConnect').disabled=true;
-      if(S.dev){ S.dev.removeEventListener('gattserverdisconnected',onDrop); try{ if(S.dev.gatt.connected) S.dev.gatt.disconnect(); }catch(_){} }
-      S.dev=null;
       S.dev=await prePicked;
       S.dev.addEventListener('gattserverdisconnected',onDrop);
     }
@@ -1168,13 +1167,11 @@ async function connect(userInitiated, prePicked){
       if(stratIdx<STRATEGIES.length)
         log('in','   next tap will try ['+(stratIdx+1)+'/'+STRATEGIES.length+'] '+STRATEGIES[stratIdx].name);
       else { stratIdx=0; log('er','   all variants exhausted — wrapping to the first'); }
+      $('scanMode').value=String(stratIdx);
       S.giveUp=true; showConnectUI(); return;
     }
     const cancelled = /NotFoundError|cancel|chooser|user/i.test(d);
     if(cancelled){ S.giveUp=true; showConnectUI(); } else scheduleReconnect();
-  }finally{
-    connecting=false;
-    if(S.giveUp || (!S.live && reconnectT===null)) showConnectUI();
   }
 }
 
@@ -1412,14 +1409,13 @@ async function handshake(t0){
 }
 
 function scheduleReconnect(){
-  if(reconnectT!==null) return;
   if(!AUTO_RECONNECT||S.giveUp||!S.dev){ showConnectUI(); return; }
-  if(S.retries>=6){ S.giveUp=true; log('er','── giving up after 6 attempts'); showConnectUI(); return; }
+  if(S.retries>=6){ log('er','── giving up after 6 attempts'); showConnectUI(); return; }
   const wait=Math.min(800*Math.pow(1.7,S.retries),12000);
   S.retries++;
   log('in','── reconnect '+S.retries+'/6 in '+Math.round(wait)+'ms');
   clearTimeout(reconnectT);
-  reconnectT=setTimeout(()=>{ reconnectT=null; if(connecting){ scheduleReconnect(); return; } if(!S.giveUp) connect(false); },wait);
+  reconnectT=setTimeout(()=>connect(false),wait);
 }
 
 function onDrop(){
@@ -1434,12 +1430,11 @@ function onDrop(){
   setLink('Offline','');
   log('er','── link dropped'+(wasUp?' (was established)':' (during setup)'));
   paint();
-  if(!connecting) scheduleReconnect();
+  scheduleReconnect();
 }
 async function disconnect(){
   S.giveUp=true;
   clearInterval(poll); clearInterval(keepAlive); clearTimeout(reconnectT);
-  reconnectT=null;
   poll=keepAlive=null;
   if(S.pending){ clearTimeout(S.pending.timer); S.pending=null; }
   _gattChain=Promise.resolve();
@@ -1612,18 +1607,18 @@ function loadFromHash(){
   const h=location.hash.replace(/^#/,''); if(!h) return;
   const p=new URLSearchParams(h);
   if(p.get('key'))    $('keyIn').value=p.get('key');
-  if(p.get('uuid') && !['00000000-24f6-4000-a000-0fedf19130a2','00000000-24f6-4000-a000-0ad90574bb0b'].includes(p.get('uuid').toLowerCase())) $('devUuid').value=p.get('uuid');
+  if(p.get('uuid'))   $('devUuid').value=p.get('uuid');
   if(p.get('unlock')) $('unlockHex').value=p.get('unlock');
 }
 function refreshShareUrl(){
   const p=new URLSearchParams();
   const k=$('keyIn').value.trim();
-  // Never include the local key in a generated share URL.
+  if(k) p.set('key',k);
   p.set('uuid',$('devUuid').value.trim());
   const u=$('unlockHex').value.trim();
   if(u && u.toLowerCase()!=='8dc4f3ee') p.set('unlock',u);
   const url=location.origin+location.pathname+'#'+p.toString();
-  const el=$('shareUrl'); if(el) el.textContent = url;
+  const el=$('shareUrl'); if(el) el.textContent = k ? url : 'pair first to get a key';
   const pn=$('pairNote');
   if(pn) pn.style.display = k ? 'none' : '';
   return url;
@@ -1942,17 +1937,23 @@ if(window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches){
 }
 
 /* ── bindings ───────────────────────────────────────────────────────── */
-$('btnConnect').onclick=()=>{
-  if(connecting) return;
-  clearTimeout(reconnectT); reconnectT=null;
+$('btnConnect').onclick=async()=>{
   const k=$('keyIn').value.trim();
-  if(!k){ toast('No key — use “Pair with purifier”',true); return; }
-  try{ if(atob(k).length!==16) throw 0; }catch(e){ toast('Local key must be 16 bytes of base64',true); return; }
-  let p; try{ p=pickDevice(); }
-  catch(e){ log('er','!! '+describe(e)); explain(e); toast(errText(e),true); return; }
-  p.catch(()=>{});
-  screen('connecting'); setLink('Connecting'); setLinkText('');
-  connect(true,p);
+  try { if(atob(k).length!==16) throw new Error('invalid key'); }
+  catch(e){ toast('Local key must be 16 bytes of base64',true); return; }
+  let p;
+  try {
+    clearTimeout(reconnectT); S.giveUp=true;
+    if(S.dev){ S.dev.removeEventListener('gattserverdisconnected',onDrop); if(S.dev.gatt.connected) S.dev.gatt.disconnect(); S.dev=null; }
+    p=pickDevice();
+    p.catch(()=>{});
+    $('btnConnect').disabled=true;
+    screen('connecting'); setLink('Connecting'); setLinkText('');
+    await connect(true,p);
+  } catch(e){
+    log('er','!! '+describe(e)); explain(e); toast(errText(e),true);
+    showConnectUI();
+  } finally { $('btnConnect').disabled=false; }
 };
 
 /* Pairing picker. The beacon that carries the key comes from a DIFFERENT
@@ -2004,7 +2005,7 @@ $('btnPair').onclick=()=>{
 
 $('btnDisconnect').onclick=()=>{ disconnect(); screen('setup'); };
 $('backBtn').onclick=()=>{ disconnect(); screen('setup'); };
-$('retryBtn').onclick=()=>{ disconnect(); };
+$('retryBtn').onclick=()=>{ screen('setup'); };
 $('settingsBtn').onclick=()=>{ const p=$('settingsPanel'); if(p) p.classList.toggle('hidden'); };
 $('btnDumpKey').onclick=dumpKeyBlob;
 $('btnProbe').onclick=probeDeviceData;
@@ -2042,7 +2043,7 @@ refreshShareUrl();
 screen('setup');
 paint();
 
-log('hd','── Guardian CDAP4500BCA controller v25-reconnect');
+log('hd','── Guardian APZ-451 controller v25-retry');
 log('in','   main service '+SVC);
 log('in','   functionNumber 0x'+FUNCTION_NUMBER.toString(16).toUpperCase().padStart(8,'0'));
 (async function selfCheck(){
