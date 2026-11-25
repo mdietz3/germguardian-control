@@ -1,0 +1,2064 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f5f5f5">
+<title>Guardian Air Purifier</title>
+<style>
+    
+        :root {
+            --color-bg: #f5f5f5;
+            --color-bg-secondary: white;
+            --color-border: #e0e0e0;
+            --color-border-light: #f0f0f0;
+            --color-text-primary: #333;
+            --color-text-secondary: #666;
+            --color-text-dim: #999;
+            --color-accent: #5DADE2;
+            --color-accent-text: white;
+            --color-toggle-bg: #ccc;
+            --color-toggle-knob: white;
+            --color-shadow: rgba(0, 0, 0, 0.1);
+        }
+
+        body.dark-mode {
+            --color-bg: #1a1a1a;
+            --color-bg-secondary: #2d2d2d;
+            --color-border: #404040;
+            --color-border-light: #404040;
+            --color-text-primary: #e0e0e0;
+            --color-text-secondary: #b0b0b0;
+            --color-text-dim: #808080;
+            --color-toggle-bg: #404040;
+            --color-toggle-knob: #e0e0e0;
+            --color-shadow: rgba(0, 0, 0, 0.3);
+        }
+
+        body.amoled-mode {
+            --color-bg: #000000;
+            --color-bg-secondary: #000000;
+            --color-border: #1a1a1a;
+            --color-border-light: #1a1a1a;
+            --color-text-primary: #e0e0e0;
+            --color-text-secondary: #b0b0b0;
+            --color-text-dim: #808080;
+            --color-toggle-bg: #1a1a1a;
+            --color-toggle-knob: #ffffff;
+            --color-shadow: rgba(255, 255, 255, 0.1);
+            --color-border-amoled-toggle: #333; /* Specific for amoled toggle */
+        }
+        
+        /* --- Base Styles (Written Once) --- */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--color-bg);
+            min-height: 100vh;
+            width: 100%;
+            /* The original app ran in a fixed-size web view and used
+               overflow:hidden + position:fixed here. On a real page that makes
+               the whole document unscrollable, so it is deliberately dropped. */
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+        html { overflow-y: auto; }
+        /* keep the settings sheet from locking the page permanently */
+        body.settings-open { overflow: hidden; }
+
+        /* Header */
+        .header {
+            background: var(--color-bg-secondary);
+            padding: 15px;
+            text-align: center;
+            border-bottom: 1px solid var(--color-border);
+            position: relative;
+        }
+
+        .header-logo {
+            height: 50px;
+        }
+
+        .settings-icon, .back-icon {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 24px;
+            color: var(--color-accent);
+            cursor: pointer;
+            background: none;
+            border: none;
+        }
+        
+        .settings-icon { right: 15px; }
+        .back-icon { left: 15px; }
+
+        /* Air Quality Banner */
+        .air-quality-banner {
+            background: #4CAF50; /* Good */
+            color: white;
+            text-align: center;
+            padding: 12px;
+            font-size: 16px;
+            font-weight: 500;
+            text-transform: uppercase;
+            transition: background 0.3s;
+        }
+        .air-quality-banner.moderate { background: #FFA726; }
+        .air-quality-banner.unhealthy { background: #EF5350; }
+
+        /* Control Area */
+        .control-area {
+            background: linear-gradient(180deg, #5DADE2 0%, #3498DB 100%);
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: stretch;
+            gap: 15px;
+            color: white;
+        }
+        .device-image-container { flex-shrink: 0; }
+        .device-image { 
+            width: 45px;
+            height: auto; 
+            display: block; 
+        }
+        .control-display {
+            flex: 1;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            gap: 15px;
+        }
+		.status-left {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            gap: 15px;
+            flex: 1;
+        }
+        .status-right {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            flex: 1;
+            max-width: 180px;
+        }
+        .particulate-matter { margin-bottom: 0; }
+        .particulate-label { font-size: 12px; opacity: 0.9; margin-bottom: 5px; }
+        .particulate-value { font-size: 36px; font-weight: bold; line-height: 1; }
+		
+		.device-speed-row {
+            display: flex;
+            align-items: flex-end; /* Locks the Purifier and Speed bars to the exact same baseline */
+            gap: 15px;
+        }
+        
+        .speed-display { display: flex; align-items: flex-end; gap: 8px; }
+        .speed-icon, .uv-icon, .timer-icon, .filter-icon { width: 32px; height: auto; }
+        .speed-bars { display: flex; align-items: flex-end; gap: 2px; height: 40px; }
+        .speed-bar { width: 8px; background: rgba(255, 255, 255, 0.3); border-radius: 2px; }
+        .speed-bar.active { background: white; }
+
+        .uv-indicator, .timer-indicator, .filter-indicator {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .filter-indicator {
+            grid-column: 1 / 3;
+        }
+
+		.indicator-icon { width: 32px; height: 32px; font-size: 24px; display: flex; align-items: center; justify-content: center; }
+        .indicator-label { font-size: 10px; text-transform: uppercase; opacity: 0.9; }
+        .indicator-value { font-size: 18px; font-weight: bold; line-height: 1; }
+
+        /* Controls Section */
+        .controls-section {
+            background: var(--color-bg-secondary);
+        }
+
+        .control-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 18px 20px;
+            border-bottom: 1px solid var(--color-border-light);
+        }
+        .control-item-left { display: flex; align-items: center; gap: 12px; }
+        .control-icon { width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; }
+        .control-icon img { width: 100%; height: 100%; object-fit: contain; }
+        .control-label { font-size: 16px; font-weight: 500; color: var(--color-text-primary); }
+
+        /* Toggle Switch */
+		.toggle {
+			position: relative;
+			width: 56px;
+			height: 32px;
+			appearance: none;
+			background: var(--color-toggle-bg);
+			border-radius: 16px;
+			cursor: pointer;
+			transition: background 0.3s;
+			outline: none;
+		}
+		.toggle:checked {
+			background: var(--color-accent);
+		}
+		.toggle::before {
+			content: '';
+			position: absolute;
+			width: 26px;
+			height: 26px;
+			border-radius: 50%;
+			background: var(--color-toggle-knob);
+			top: 3px;
+			left: 3px;
+			transition: transform 0.3s;
+			box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+		}
+		.toggle:checked::before {
+			transform: translateX(24px);
+		}
+        
+        /* AMOLED-specific toggle border */
+        body.amoled-mode .toggle {
+            border: 1px solid var(--color-border-amoled-toggle);
+        }
+        body.amoled-mode .toggle:checked {
+			border: 1px solid var(--color-accent);
+        }
+
+        /* Timer Select */
+        .timer-select {
+            padding: 8px 35px 8px 15px;
+            border: 2px solid var(--color-border);
+            border-radius: 8px;
+            font-size: 16px;
+            background: var(--color-bg-secondary);
+            color: var(--color-text-primary);
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L6 6L11 1' stroke='%23666' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+        }
+
+        /* Speed Buttons */
+        .speed-buttons {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 8px;
+            padding: 20px;
+            background: var(--color-bg-secondary);
+            border-bottom: 1px solid var(--color-border-light);
+        }
+        .speed-btn {
+            padding: 12px 8px;
+            border: 2px solid var(--color-border);
+            border-radius: 8px;
+            background: var(--color-bg-secondary);
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--color-text-primary);
+        }
+        .speed-btn:active { transform: scale(0.95); }
+        .speed-btn.active {
+            background: var(--color-accent);
+            color: var(--color-accent-text);
+            border-color: var(--color-accent);
+        }
+
+        /* Connection/Loading Screen */
+        .connection-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--color-bg-secondary);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            z-index: 1000;
+        }
+        .connection-screen h2 { margin: 20px 0 10px; color: var(--color-text-primary); }
+        .connection-screen p { color: var(--color-text-secondary); text-align: center; margin-bottom: 20px; }
+        .loading {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(93, 173, 226, 0.3);
+            border-radius: 50%;
+            border-top-color: var(--color-accent);
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .retry-btn {
+            padding: 14px 32px;
+            background: var(--color-accent);
+            color: var(--color-accent-text);
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+        .retry-btn:active { transform: scale(0.95); }
+        .error-message {
+            color: #EF5350;
+            font-size: 14px;
+            margin-top: 10px;
+            text-align: center;
+            padding: 12px;
+            border-radius: 8px;
+            background: #ffebee;
+        }
+
+        /* Debug Console */
+        .debug-console {
+            background: rgba(0, 0, 0, 0.9);
+            color: #0f0;
+            padding: 12px;
+            margin: 20px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 11px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .debug-console p { margin: 2px 0; font-size: 11px; word-wrap: break-word; white-space: pre-wrap; }
+        .debug-console p.error { color: #ff5555; }
+        .debug-console p.success { color: #55ff55; }
+        .debug-console p.warning { color: #ffaa00; }
+
+        /* Settings Panel */
+		.settings-panel {
+			position: fixed;
+			top: 0;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			background: var(--color-bg);
+			z-index: 999;
+			overflow-y: auto;
+			display: none;
+			overscroll-behavior: contain;
+		}
+		.settings-panel.show { display: block; }
+		body.settings-open { overflow: hidden; }
+        .settings-content { padding-bottom: 20px; }
+        .settings-card {
+            background: var(--color-bg-secondary);
+            margin: 20px;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px var(--color-shadow);
+        }
+        .life-status { margin-bottom: 20px; }
+        .life-status:last-child { margin-bottom: 0; }
+        .life-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+            color: var(--color-text-secondary);
+            margin-bottom: 8px;
+        }
+        .life-bar-bg { height: 8px; background: var(--color-border); border-radius: 4px; overflow: hidden; }
+        .life-bar-fill {
+            height: 100%;
+            background: var(--color-accent);
+            border-radius: 4px;
+            transition: width 0.5s ease-in-out;
+            width: 100%;
+        }
+        .setting-alert {
+            background-color: #fff3cd;
+            border: 1px solid #ffc107;
+            color: #856404;
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+            font-size: 13px;
+            display: none;
+        }
+        .setting-alert.show { display: block; }
+		
+        .life-hours {
+            color: var(--color-text-dim);
+            font-size: 12px;
+            margin-top: 5px;
+            display: block;
+        }
+        
+        .hidden { display: none !important; }
+        .console-hidden { display: none !important; }
+
+        /* Device Selector */
+        .device-select-container {
+            padding: 0 20px 20px;
+            background: var(--color-bg-secondary);
+        }
+    
+
+/* ── additions for the web build ─────────────────────────────────────── */
+.pair-panel{max-width:480px;margin:0 auto;padding:18px}
+.field{margin-bottom:12px}
+.field label{display:block;font-size:12px;color:var(--color-text-secondary);
+  margin-bottom:5px;letter-spacing:.04em}
+.field input{width:100%;padding:11px 12px;border:1px solid var(--color-border);
+  border-radius:8px;background:var(--color-bg-secondary);color:var(--color-text-primary);
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+.field input:focus{outline:none;border-color:var(--color-accent)}
+.btn{width:100%;padding:14px;border:none;border-radius:8px;background:var(--color-accent);
+  color:var(--color-accent-text);font-size:15px;font-weight:600;cursor:pointer;margin-top:8px}
+.btn:active{opacity:.85}
+.btn[disabled]{opacity:.5;cursor:default}
+.btn.secondary{background:transparent;color:var(--color-text-secondary);
+  border:1px solid var(--color-border);font-weight:500;font-size:13px}
+.pair-note{font-size:12.5px;line-height:1.6;color:var(--color-text-secondary);
+  background:var(--color-bg-secondary);border:1px solid var(--color-border);
+  border-left:3px solid var(--color-accent);border-radius:8px;padding:12px 14px;margin-top:14px}
+.pair-note b{color:var(--color-text-primary)}
+.pair-steps{margin:10px 0 0 0;padding-left:18px}
+.pair-steps li{margin-bottom:6px}
+.share-url{font-family:ui-monospace,Menlo,monospace;font-size:10.5px;color:var(--color-accent);
+  word-break:break-all;background:var(--color-bg);padding:8px;border-radius:6px;margin-top:6px}
+.debug-console{white-space:pre-wrap;word-break:break-all;max-height:44vh;overflow-y:auto;
+  -webkit-overflow-scrolling:touch;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-size:10.5px;line-height:1.65;background:var(--color-bg-secondary);
+  border:1px solid var(--color-border);border-radius:8px;padding:10px;color:var(--color-text-dim)}
+.console-hidden{display:none}
+#mainContent{padding-bottom:28px}
+.pair-panel{padding-bottom:32px}
+.log-tx{color:#5DADE2}.log-rx{color:#4CAF50}.log-er{color:#EF5350}
+.log-hd{color:var(--color-text-primary);font-weight:600}.log-in{color:var(--color-text-dim)}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(90px);
+  background:var(--color-bg-secondary);border:1px solid var(--color-border);
+  color:var(--color-text-primary);padding:11px 18px;border-radius:9px;font-size:13.5px;
+  box-shadow:0 4px 14px var(--color-shadow);transition:transform .25s;z-index:99;max-width:88vw;
+  text-align:center}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast.err{border-color:#EF5350}
+</style>
+</head>
+<body>
+
+<!-- ── pairing / setup ───────────────────────────────────────────────── -->
+<div class="pair-panel" id="setupScreen">
+  <div class="header" style="margin-bottom:16px">
+    <img src="img/color-logo.png" alt="Guardian Technologies" class="header-logo"
+         onerror="this.style.display='none'">
+  </div>
+
+  <div class="field">
+    <label for="keyIn">Local key (base64)</label>
+    <input id="keyIn" placeholder="leave blank to pair" autocomplete="off" spellcheck="false">
+  </div>
+  <div class="field">
+    <label for="devUuid">Device UUID (advertised)</label>
+    <input id="devUuid" value="00000000-24f6-4000-a000-0fedf19130a2" autocomplete="off" spellcheck="false">
+  </div>
+  <div class="field" id="unlockField">
+    <label for="unlockHex">Session unlock (f000)</label>
+    <input id="unlockHex" value="8dc4f3ee" autocomplete="off" spellcheck="false">
+  </div>
+
+  <button class="btn" id="btnConnect">Connect</button>
+  <button class="btn" id="btnPair" style="background:#4CAF50">Pair with purifier</button>
+  <div id="keyFound" style="display:none;margin-top:10px;padding:11px 13px;border-radius:8px;
+       background:rgba(76,175,80,.12);border:1px solid #4CAF50;color:var(--color-text-primary);
+       font-family:ui-monospace,Menlo,monospace;font-size:11.5px;word-break:break-all"></div>
+
+  <div class="pair-note" id="pairNote">
+    <b>No key yet?</b> Pairing reads it straight off the purifier.
+    <ol class="pair-steps">
+      <li><b>Press and hold the LINK button FIRST</b> and keep holding it — the
+          purifier only broadcasts its key while the button is down.</li>
+      <li>Still holding, tap <b>Pair with purifier</b> and pick the device that
+          appears. It has no name; with the Aplix filter it should be the only one.</li>
+      <li>Registration mode runs on a timer inside the purifier, so the app
+          retries for about 30&nbsp;seconds. Keep holding until it says paired.</li>
+      <li>The beacon's rotating <b>token</b> is read and shown. Note this is a
+          per-session challenge, <b>not</b> the key — the key itself is exchanged
+          over a connection we have not yet decoded.</li>
+    </ol>
+    <b>If it doesn't work:</b> tap <b>Show log</b> and send the
+    <span style="font-family:ui-monospace,Menlo,monospace;font-size:11px">f011 blob</span>
+    line — that tells us whether the purifier hands over the raw key or a wrapped one.
+  </div>
+
+  <div class="pair-note" id="shareNote" style="border-left-color:#4CAF50">
+    <b>Share this setup</b> — bookmark or send this link:
+    <div class="share-url" id="shareUrl">—</div>
+  </div>
+
+  <button class="btn secondary" id="btnShowLog" style="margin-top:14px">Show log</button>
+  <div class="debug-console console-hidden" id="debugInfo" style="margin-top:10px"></div>
+  <button class="btn secondary" id="btnCopyLog">Copy log</button>
+</div>
+
+<!-- ── connecting ────────────────────────────────────────────────────── -->
+<div class="connection-screen hidden" id="connectionScreen">
+  <div class="loading"></div>
+  <h2 id="connectionTitle">Connecting</h2>
+  <p id="connectionText" style="color:var(--color-text-secondary);font-size:14px;margin-top:8px"></p>
+  <button class="retry-btn hidden" id="retryBtn">Retry</button>
+</div>
+
+<!-- ── main control ──────────────────────────────────────────────────── -->
+<div id="mainContent" class="hidden">
+  <div class="header">
+    <button class="back-icon" id="backBtn">✕</button>
+    <img src="img/color-logo.png" alt="Guardian Technologies" class="header-logo"
+         onerror="this.style.display='none'">
+    <button class="settings-icon" id="settingsBtn">⚙</button>
+  </div>
+
+  <div class="air-quality-banner" id="airQualityBanner">—</div>
+
+  <div class="control-area">
+    <div class="status-left">
+      <div class="particulate-matter">
+        <div class="particulate-label">Particulate Matter</div>
+        <div class="particulate-value" id="particulateValue">--</div>
+      </div>
+      <div class="device-speed-row">
+        <img src="img/control-head-led.png" alt="Air Purifier" class="device-image"
+             id="deviceImage" onerror="this.style.display='none'">
+        <div class="speed-display">
+          <img src="img/control-head-speed.png" alt="Speed" class="speed-icon"
+               onerror="this.style.display='none'">
+          <div class="speed-bars" id="speedBars">
+            <div class="speed-bar" style="height:10px"></div>
+            <div class="speed-bar" style="height:18px"></div>
+            <div class="speed-bar" style="height:26px"></div>
+            <div class="speed-bar" style="height:34px"></div>
+            <div class="speed-bar" style="height:40px"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="status-right">
+      <div class="uv-indicator" id="uvIndicator">
+        <div class="indicator-icon">
+          <img src="img/control-head-uv.png" alt="UV" class="uv-icon" id="uvIcon"
+               onerror="this.style.display='none'">
+        </div>
+        <div class="indicator-label">UV Bulb</div>
+        <div class="indicator-value" id="uvLifeDisplay">--%</div>
+      </div>
+      <div class="timer-indicator">
+        <div class="indicator-icon">
+          <img src="img/control-head-timer.png" alt="Timer" class="timer-icon"
+               onerror="this.style.display='none'">
+        </div>
+        <div class="indicator-label">Timer</div>
+        <div class="indicator-value" id="timerDisplay">--</div>
+      </div>
+      <div class="filter-indicator" id="filterIndicator">
+        <div class="indicator-icon">
+          <img src="img/control-head-filter.png" alt="Filter" class="filter-icon"
+               onerror="this.style.display='none'">
+        </div>
+        <div class="indicator-label">HEPA</div>
+        <div class="indicator-value" id="filterLifeDisplay">--%</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls-section">
+    <div class="control-item">
+      <div class="control-item-left">
+        <div class="control-icon"><img src="img/control-power.jpg" alt="Power"
+             onerror="this.style.display='none'"></div>
+        <div class="control-label">Power</div>
+      </div>
+      <input type="checkbox" class="toggle" id="powerToggle">
+    </div>
+
+    <div class="control-item">
+      <div class="control-item-left">
+        <div class="control-icon"><img src="img/control-auto.jpg" alt="Auto"
+             onerror="this.style.display='none'"></div>
+        <div class="control-label">Auto Mode</div>
+      </div>
+      <input type="checkbox" class="toggle" id="autoToggle">
+    </div>
+
+    <div class="control-item">
+      <div class="control-item-left">
+        <div class="control-icon"><img src="img/control-uv.jpg" alt="UV"
+             onerror="this.style.display='none'"></div>
+        <div class="control-label">UV Mode</div>
+      </div>
+      <input type="checkbox" class="toggle" id="uvToggle">
+    </div>
+
+    <div class="control-item">
+      <div class="control-item-left">
+        <div class="control-icon"><img src="img/control-speed.jpg" alt="Fan"
+             onerror="this.style.display='none'"></div>
+        <div class="control-label">Fan Speed</div>
+      </div>
+      <div class="speed-buttons" id="speedButtons"></div>
+    </div>
+
+    <div class="control-item">
+      <div class="control-item-left">
+        <div class="control-icon"><img src="img/control-timer.jpg" alt="Timer"
+             onerror="this.style.display='none'"></div>
+        <div class="control-label">Timer</div>
+      </div>
+      <select class="timer-select" id="timerSelect">
+        <option value="0">Off</option>
+        <option value="1">1 hour</option>
+        <option value="2">2 hours</option>
+        <option value="4">4 hours</option>
+        <option value="8">8 hours</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="settings-panel hidden" id="settingsPanel">
+    <div class="settings-card">
+      <div class="settings-content">
+        <div class="control-item">
+          <div class="control-label">Dark mode</div>
+          <input type="checkbox" class="toggle" id="darkModeToggle">
+        </div>
+        <div class="control-item">
+          <div class="control-label">AMOLED black</div>
+          <input type="checkbox" class="toggle" id="amoledModeToggle">
+        </div>
+        <div class="control-item">
+          <div class="control-label">Show log</div>
+          <input type="checkbox" class="toggle" id="logToggle">
+        </div>
+        <div class="life-status">
+          <div class="life-label">HEPA filter</div>
+          <div class="life-bar-bg"><div class="life-bar-fill" id="filterBar"></div></div>
+          <div class="life-hours" id="filterHours">— / — h</div>
+        </div>
+        <div class="life-status">
+          <div class="life-label">UV bulb</div>
+          <div class="life-bar-bg"><div class="life-bar-fill" id="bulbBar"></div></div>
+          <div class="life-hours" id="bulbHours">— / — h</div>
+        </div>
+        <button class="btn secondary" id="btnProbe" style="margin-top:14px">
+          Probe device data (f007/f008)</button>
+        <button class="btn secondary" id="btnDumpKey" style="margin-top:8px">
+          Read key blob (f011)</button>
+        <button class="btn secondary" id="btnMainLog" style="margin-top:8px">
+          Show / hide log</button>
+        <div class="debug-console console-hidden" id="mainLog" style="margin-top:10px"></div>
+        <button class="btn secondary" id="btnCopyLog2" style="margin-top:8px">
+          Copy log</button>
+        <button class="btn secondary" id="btnDisconnect" style="margin-top:8px">
+          Disconnect</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+
+"use strict";
+
+/* ═══════════════════════════════════════════════════════════════════
+   Guardian Technologies APZ-451 — offline BLE controller  (v2)
+
+   Protocol recovered from oem4guardiantech.app 2.21.4 (Aplix "hubea"
+   / Zeemote SDK) via Ghidra + the bundled guardian.js / aspe.js.
+
+   Frame stack, outermost last:
+     ASPE message → ZECommand → ZEDataEncoder(AES-CTR+CRC16) → PDU chunks → GATT
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* 16-bit SIG UUIDs expand to the Bluetooth base UUID. The spec lets you pass
+   the bare number, but Bluefy's shim rejects numeric UUIDs during argument
+   validation (it throws a plain `2`), so always hand it canonical strings. */
+const sig = n => '0000'+n.toString(16).padStart(4,'0')+'-0000-1000-8000-00805f9b34fb';
+
+/* Advertised (scan) UUIDs — NOT the same as the GATT service UUID.
+   Confirmed by nRF sniffer capture of a real APZ-451: the unit advertises
+   0xFEF8 (not 0xFEF7) plus a device-specific 128-bit "masterUuid" of the
+   form 00000000-24f6-4000-a000-<per-unit suffix>. That masterUuid is what
+   ZEBleDevice::isIdenticalWithUuid_ matches on, and it is the most precise
+   filter available — it identifies this exact purifier. */
+const ADV_FEF7 = sig(0xFEF7);   // ZEUtility::initialize   — seen on some JM1 builds
+const ADV_FEF8 = sig(0xFEF8);   // ZEDeviceManagerImpl     — what this unit advertises
+/* Sniffer capture proved the LOCAL KEY authenticates 00:1c:4d:4b:f0:80.
+   The other Aplix unit on this network, 00:1c:4d:4b:18:da, advertises
+   ...0a1312c1f600 and does NOT accept this key — earlier builds filtered
+   onto that one and could never authenticate. */
+const DEFAULT_MASTER_UUID = '00000000-24f6-4000-a000-0fedf19130a2';
+function masterUuid(){
+  const v = ($('devUuid') && $('devUuid').value.trim().toLowerCase()) || '';
+  return /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(v) ? v : DEFAULT_MASTER_UUID;
+}
+
+/* GATT services */
+const SVC     = '00000001-24f6-4000-a000-000000000000';  // main JM1 service (confirmed on hardware)
+const SVC_ALT = '00000002-24f6-4000-a000-000000000000';  // ZEBleADevice variant
+const SVC_DIS = sig(0x180A);                             // Device Information
+
+/* characteristics — these live INSIDE SVC and must never appear in
+   optionalServices; listing a characteristic there is an invalid argument. */
+const C_IN   = '00000010-24f6-4000-a000-000000000000';   // chunk in  device→app (notify)
+const C_INA  = '00000011-24f6-4000-a000-000000000000';   // chunk in ack
+const C_OUT  = '00000012-24f6-4000-a000-000000000000';   // chunk out app→device (write)
+const C_OTA  = '00000013-24f6-4000-a000-000000000000';   // chunk out ack (notify)
+const C_CHAL   = '0000f004-24f6-4000-a000-000000000000'; // _C001_ challenge  (read + write)
+const C_RESP   = '0000f005-24f6-4000-a000-000000000000'; // _C002_ response   (write + read)
+const C_KEYEXC = '0000f011-24f6-4000-a000-000000000000'; // key PROVISIONING only (registration)
+const C_KEYSEL = '0000f012-24f6-4000-a000-000000000000'; // local key selector
+const C_CTRL   = '0000fffd-24f6-4000-a000-000000000000'; // _C1DIP_ — NEVER write: kills the session
+const C_DISC   = '0000fffe-24f6-4000-a000-000000000000'; // DISCONNECT — writing 0x00 drops the link
+const C_CONNIV = '0000ffff-24f6-4000-a000-000000000000'; // connection interval (notify)
+const C_UART   = '0000f001-24f6-4000-a000-000000000000'; // UART config
+const C_F000   = '0000f000-24f6-4000-a000-000000000000';
+const C_F007   = '0000f007-24f6-4000-a000-000000000000'; // _charDeviceDataSelect
+const C_F008   = '0000f008-24f6-4000-a000-000000000000'; // _charDeviceDataAccess
+
+const ALL_SVCS = [SVC, SVC_ALT, ADV_FEF7, ADV_FEF8, SVC_DIS];
+function optSvcs(){ return ALL_SVCS.concat([masterUuid()]); }
+
+/* ASPE ---------------------------------------------------------------- */
+const MSG = { SET_DATA:0x01, GET_DATA:0x02, ENABLE_REPORT:0x03,
+              INPUT_REPORT:0x04, RESPONSE:0xEE, DATA_RESPONSE:0xEF };
+const DT  = { STATUS:0x80, POWER:0x81, WIND:0x82, AUTO:0x83, TIMER:0x84, UV:0x85 };
+const REPLACE = { filter:4380, bulb:7300 };
+
+function aspeBuild(type, payload){
+  const d=[0, type & 0xFF];
+  if(payload) d.push(...payload);
+  d.unshift(d.length+1);
+  d.push(d.reduce((a,b)=>(a+b)&0xFF,0));
+  return Uint8Array.from(d);
+}
+function aspeData(entries){
+  const out=[];
+  for(const [t,pl] of entries){ const b=[t&0xFF,...pl]; b.unshift(b.length); out.push(...b); }
+  return out;
+}
+function aspeParse(bytes){
+  let d=Array.from(bytes);
+  if(d[0]===0xFF) d.splice(0,5);
+  if(d.length<4) throw new Error('short packet');
+  const len=d[0]&0xFF;
+  if(d.length<=len) throw new Error('short packet');
+  const pkt=d.slice(0,len+1);
+  if((pkt.slice(0,-1).reduce((a,b)=>(a+b)&0xFF,0))!==pkt[pkt.length-1]) throw new Error('bad checksum');
+  return { type:pkt[2], payload:pkt.slice(3,len) };
+}
+function reportBlocks(payload){
+  const out=[]; let i=0;
+  while(i<payload.length){
+    const n=payload[i++]&0xFF; if(!n) break;
+    if(i+n<=payload.length) out.push({type:payload[i]&0xFF, data:payload.slice(i+1,i+n)});
+    i+=n;
+  }
+  return out;
+}
+
+/* ZECommand ----------------------------------------------------------- */
+const SURVEY = true;           // log the full GATT survey after connecting
+const AUTO_RECONNECT = true;   // retry automatically if the link drops
+const FUNCTION_NUMBER = 0x0001000F;   // 65551, observed on the wire
+function zeCommand(payload, counter, fn=FUNCTION_NUMBER, code=0xFF, toDevice=true){
+  const o=[(toDevice?1:0)^1];
+  o.push((counter>>>24)&255,(counter>>>16)&255,(counter>>>8)&255,counter&255);
+  o.push(code&0xFF);
+  o.push((fn>>>24)&255,(fn>>>16)&255,(fn>>>8)&255,fn&255);
+  o.push(...payload);
+  return Uint8Array.from(o);
+}
+function zeParse(raw){
+  return { counter:(raw[1]<<24|raw[2]<<16|raw[3]<<8|raw[4])>>>0, code:raw[5], payload:raw.slice(10) };
+}
+
+/* ZEDataEncoder: AES-128-CTR + CRC16 ---------------------------------- */
+function crc16(bytes){
+  let crc=0xFFFF;
+  for(let b of bytes){ b&=0xFF;
+    for(let i=0;i<8;i++){ const x=(b^crc)&1; crc>>>=1; if(x) crc^=0x8408; b>>=1; } }
+  return crc&0xFFFF;
+}
+function ctrBlock(nonce,i){
+  const b=nonce.slice(); const last=nonce[15];
+  if(last+i>0xFF) b[14]|=0x01;      // OR, not a carry — matches the binary
+  b[15]=(last+i)&0xFF;
+  return b;
+}
+let AESKEY=null;
+async function importKey(raw){ AESKEY=await crypto.subtle.importKey('raw',raw,{name:'AES-CBC'},false,['encrypt']); }
+async function aesBlock(block16){
+  if(!AESKEY) throw new Error('no local key loaded — pair first, or paste a key');
+  const ct=new Uint8Array(await crypto.subtle.encrypt({name:'AES-CBC',iv:new Uint8Array(16)},AESKEY,block16));
+  return ct.slice(0,16);
+}
+async function encodeData(plain){
+  const n=plain.length, bodyLen=n+2;
+  let total=n+0x14; total+=(16-(total&0xF))&0xF;
+  const buf=new Uint8Array(total);
+  crypto.getRandomValues(buf.subarray(0,16));
+  buf[16]=(bodyLen>>8)&0xFF; buf[17]=bodyLen&0xFF;
+  buf.set(plain,18);
+  const c=crc16(buf.subarray(16,16+bodyLen));
+  buf[16+bodyLen]=(c>>8)&0xFF; buf[17+bodyLen]=c&0xFF;
+  const nonce=buf.slice(0,16);
+  for(let i=0;i<(total>>4)-1;i++){
+    const ks=await aesBlock(ctrBlock(nonce,i)); const off=16+i*16;
+    for(let j=0;j<16;j++) buf[off+j]^=ks[j];
+  }
+  return buf;
+}
+async function decodeData(enc){
+  if(enc.length<32||(enc.length-16)%16) throw new Error('bad length');
+  const nonce=enc.slice(0,16); const body=enc.slice(16);
+  for(let i=0;i<body.length/16;i++){
+    const ks=await aesBlock(ctrBlock(nonce,i)); const off=i*16;
+    for(let j=0;j<16;j++) body[off+j]^=ks[j];
+  }
+  const bodyLen=(body[0]<<8)|body[1];
+  if(bodyLen<2||bodyLen+2>body.length) throw new Error('bad body length');
+  const got=(body[bodyLen]<<8)|body[bodyLen+1];
+  if(got!==crc16(body.subarray(0,bodyLen))) throw new Error('CRC mismatch');
+  return body.slice(2,bodyLen);
+}
+
+/* PDU chunking -------------------------------------------------------- */
+const MAXPDU=17;
+const PDUS_PER_CHUNK=64;          // pduSeqNo is 6 bits
+function chunk(data,seq){
+  const out=[]; const total=Math.ceil(data.length/MAXPDU)||1;
+  /* isDivide does NOT mean "spans several PDUs". The stock app leaves it clear
+     on the same 43-byte, 3-PDU blocks we send. chunkSeqNo is 4 bits and
+     pduSeqNo is 6 bits, so a single chunk carries up to 64 PDUs (1088 bytes);
+     isDivide marks a block split across multiple CHUNKS. Our messages are
+     ~48 bytes, so it is always 0. Setting it made the device accept the first
+     block and then stop acknowledging writes entirely. */
+  const divide=total>PDUS_PER_CHUNK;
+  for(let i=0;i<total;i++){
+    const part=data.subarray(i*MAXPDU,(i+1)*MAXPDU);
+    const p=new Uint8Array(3+part.length);
+    p[0]=((i===0?1:0)<<7)|((i===total-1?1:0)<<6)|((divide?1:0)<<5)|(seq&0x0F);
+    p[1]=i&0x3F; p[2]=part.length&0x1F; p.set(part,3);
+    out.push(p);
+  }
+  return out;
+}
+
+
+/* screen shims — the UI layer owns the actual screens */
+function showConnectUI(){ screen('setup'); }
+function showLiveUI(){ screen('main'); }
+function props(c){
+  const p=c.properties||{}; const f=[];
+  for(const k of ['broadcast','read','writeWithoutResponse','write','notify','indicate'])
+    if(p[k]) f.push(k);
+  return f.join(',')||'none';
+}
+const hex=b=>Array.from(b).map(x=>x.toString(16).padStart(2,'0')).join('');
+
+/* ── session state ──────────────────────────────────────────────────── */
+const S = {
+  dev:null, live:false, svc:null, chars:{},
+  cOut:null,cIn:null,cOta:null,cKeySel:null,cKeyExc:null,cCtrl:null,cConnIv:null,
+  counter:0, chunkSeq:1, rxParts:[], pending:null, busy:false,
+  cChal:null, cResp:null, cIna:null, rxActive:false, rxLast:null,
+  pairToken:null, pairUid:null,
+  giveUp:false, retries:0, ctrlOk:true, authOk:false, rxCounter:0, gen:0,
+  state:{power:false,auto:false,wind:0,timer:0,uv:false,aq:null,filt:0,bulb:0}
+};
+let poll=null, keepAlive=null, reconnectT=null;
+
+/* ── GATT operation queue ───────────────────────────────────────────────
+   CoreBluetooth allows exactly one outstanding request-response operation
+   per peripheral. Web Bluetooth does not queue for you: overlapping calls
+   reject with "GATT operation already in progress", and on the iOS shims
+   they can fail in less obvious ways. Every read, write and notification
+   subscribe goes through here, so nothing ever overlaps.               */
+let _gattChain = Promise.resolve();
+function gatt(label, fn){
+  const p = _gattChain.then(async () => {
+    const t0 = Date.now();
+    try {
+      const r = await fn();
+      const dt = Date.now()-t0;
+      if(dt>250) log('in','   '+label+' ok ('+dt+'ms)');
+      return r;
+    } catch(e) {
+      log('er','   '+label+' FAILED after '+(Date.now()-t0)+'ms: '+describe(e));
+      throw e;
+    }
+  });
+  _gattChain = p.then(()=>{}, ()=>{});
+  return p;
+}
+
+/* Characteristic lookup. This used to re-fetch each one with
+   service.getCharacteristic(), which is a GATT round-trip; seven of them cost
+   ~4.2s and the module drops unauthenticated links at ~5s, so the handshake
+   never started. Now purely a map lookup against what getCharacteristics()
+   already returned. */
+/* gatt.connect() never settles against a non-connectable advertiser, which is
+   how the pairing screen froze. Every connect is now time-boxed. */
+function connectWithTimeout(dev, ms){
+  return Promise.race([
+    dev.gatt.connect(),
+    new Promise((_,rej)=>setTimeout(
+      ()=>rej(new Error('connect timed out after '+ms+'ms — device may not be connectable')), ms))
+  ]);
+}
+
+function pickChar(uuid){
+  return S.chars[String(uuid).toLowerCase()] || null;
+}
+
+/* The stock app writes 4 bytes to f000 (write-without-response) immediately
+   before every challenge round, and on this unit nothing else is readable
+   until it does. Captured value: 8dc4f3ee. */
+function unlockBytes(){
+  const v=(($('unlockHex')&&$('unlockHex').value)||'8dc4f3ee').replace(/[^0-9a-fA-F]/g,'');
+  if(v.length<2||v.length%2) return Uint8Array.from([0x8d,0xc4,0xf3,0xee]);
+  const b=new Uint8Array(v.length/2);
+  for(let i=0;i<b.length;i++) b[i]=parseInt(v.substr(i*2,2),16);
+  return b;
+}
+async function writeUnlock(t0){
+  const c=pickChar(C_F000);
+  if(!c) { log('er','   f000 absent — cannot unlock'); return false; }
+  const u=unlockBytes();
+  const fast=c.properties.writeWithoutResponse&&c.writeValueWithoutResponse;
+  try{
+    await gatt('f000 unlock', ()=> fast ? c.writeValueWithoutResponse(u) : c.writeValue(u));
+    log('tx','→ f000 '+hex(u)+'  (session unlock'+(fast?', no-response':'')+')  +'+(Date.now()-t0)+'ms');
+    return true;
+  }catch(e){ log('er','   f000 unlock write rejected'); return false; }
+}
+
+/* ── device picker ──────────────────────────────────────────────────
+   Two hard constraints.
+
+   1. requestDevice() must be reached with user activation intact. WebKit
+      (Bluefy is a WKWebView) drops transient activation at the FIRST await.
+      Nothing in this path may await.
+
+   2. This purifier does NOT advertise FEF7/FEF8 — a filtered picker comes
+      up empty. Confirmed on hardware. So acceptAllDevices leads the ladder
+      and the filtered variants are kept only as fallbacks for other units. */
+const STRATEGIES = [
+  { name:'filter this unit\u2019s device UUID',
+    opts:()=>({ filters:[{services:[masterUuid()]}], optionalServices:optSvcs() }) },
+  { name:'filter FEF8 (what the unit advertises)',
+    opts:()=>({ filters:[{services:[ADV_FEF8]}], optionalServices:optSvcs() }) },
+  { name:'all devices, optionalServices',
+    opts:()=>({ acceptAllDevices:true, optionalServices:optSvcs() }) },
+  { name:'filter FEF7 (other JM1 builds)',
+    opts:()=>({ filters:[{services:[ADV_FEF7]}], optionalServices:optSvcs() }) },
+  { name:'all devices, main service only',
+    opts:()=>({ acceptAllDevices:true, optionalServices:[SVC] }) },
+  { name:'all devices, NO optionalServices (diagnostic)',
+    opts:()=>({ acceptAllDevices:true }) },
+];
+let stratIdx = 0;
+
+function pickDevice(){
+  if(!navigator.bluetooth) throw new Error('navigator.bluetooth missing — use Bluefy on iOS or Chrome on Android');
+  if(!window.isSecureContext) log('er','   WARNING: not a secure context — Web Bluetooth needs https:// or localhost');
+  if(stratIdx>=STRATEGIES.length) stratIdx=0;
+  const st=STRATEGIES[stratIdx];
+  const opts=st.opts();
+  log('hd','── requestDevice  ['+(stratIdx+1)+'/'+STRATEGIES.length+'] '+st.name);
+  return navigator.bluetooth.requestDevice(opts);   // NOT awaited here
+}
+
+async function connect(userInitiated, prePicked){
+  if(!navigator.bluetooth){ toast('No Web Bluetooth — use Bluefy on iOS or Chrome on Android',true); return; }
+
+  if(userInitiated){
+    let raw;
+    try{
+      raw=Uint8Array.from(atob($('keyIn').value.trim()),c=>c.charCodeAt(0));
+      if(raw.length!==16) throw 0;
+    }catch(e){ toast('Local key must be 16 bytes of base64',true); return; }
+    await importKey(raw);
+    S.giveUp=false; S.retries=0;
+  }
+
+  const t0=Date.now();
+  try{
+    if(userInitiated){
+      setLink('Scanning','busy'); $('btnConnect').disabled=true;
+      S.dev=await prePicked;
+      S.dev.addEventListener('gattserverdisconnected',onDrop);
+    }
+    if(!S.dev) throw new Error('No device selected');
+
+    log('hd','── device: '+(S.dev.name||'(no advertised name)'));
+    setLink('Linking','busy');
+
+    const myGen=++S.gen;
+    const g=await connectWithTimeout(S.dev, 12000);
+    log('in','   gatt.connect() ok  +'+(Date.now()-t0)+'ms');
+    const alive=()=>{ if(S.gen!==myGen) throw new Error('superseded by a newer connection attempt');
+                      if(!S.dev.gatt.connected) throw new Error('link dropped during setup'); };
+
+    /* ── RACE THE AUTH DEADLINE ────────────────────────────────────────
+       The module drops unauthenticated links at roughly 5 seconds. Every
+       GATT round-trip here costs ~200-600ms, so the order is: find the main
+       service, grab its characteristics, authenticate. Everything that is
+       merely informative — the 180A service, the survey listing, notification
+       subscriptions — happens afterwards.                                  */
+    let services=[];
+    try{ services=await gatt('getPrimaryServices', ()=>g.getPrimaryServices()); }
+    catch(e){ log('er','   getPrimaryServices: '+describe(e)); }
+    log('in','   '+services.length+' service(s)  (+'+(Date.now()-t0)+'ms)');
+
+    S.chars={}; S.svc=null;
+    let other=[];
+    for(const sv of services){
+      const u=sv.uuid.toLowerCase();
+      if(u===SVC.toLowerCase()||u===SVC_ALT.toLowerCase()) S.svc=sv; else other.push(sv);
+    }
+    if(!S.svc){
+      log('er','   neither JM1 service found — enumerating everything');
+      for(const sv of services) other.push(sv);
+    }
+
+    let mainChars=[];
+    if(S.svc){
+      try{ mainChars=await gatt('getCharacteristics', ()=>S.svc.getCharacteristics()); }
+      catch(e){ log('er','   getCharacteristics: '+describe(e)); }
+      for(const c of mainChars) S.chars[c.uuid.toLowerCase()]=c;
+    }
+    log('in','   '+mainChars.length+' characteristic(s)  (+'+(Date.now()-t0)+'ms)');
+
+    S.cOut=pickChar(C_OUT);       S.cIn=pickChar(C_IN);      S.cOta=pickChar(C_OTA);
+    S.cIna=pickChar(C_INA);
+    S.cKeySel=pickChar(C_KEYSEL); S.cKeyExc=pickChar(C_KEYEXC);
+    S.cChal=pickChar(C_CHAL);     S.cResp=pickChar(C_RESP);
+    S.cCtrl=pickChar(C_CTRL);     S.cConnIv=pickChar(C_CONNIV);
+    log('hd','── resolved out='+!!S.cOut+' in='+!!S.cIn+' keysel='+!!S.cKeySel+
+            ' chal='+!!S.cChal+' resp='+!!S.cResp+'  (+'+(Date.now()-t0)+'ms)');
+    if(!S.cOut||!S.cIn) throw new Error('Data characteristics not found');
+    alive();
+
+    /* AUTHENTICATE NOW — nothing else may come first. */
+    await handshake(t0);
+    alive();
+
+    /* Everything below is post-authentication. */
+    if(S.cIn.properties.notify||S.cIn.properties.indicate){
+      await gatt('0010 subscribe', ()=>S.cIn.startNotifications());
+      S.cIn.addEventListener('characteristicvaluechanged',onChunk);
+      log('in','   0010 notifications on');
+    } else log('er','   0010 has no notify/indicate — replies cannot arrive');
+
+    if(S.cOta&&(S.cOta.properties.notify||S.cOta.properties.indicate)){
+      try{
+        await gatt('0013 subscribe', ()=>S.cOta.startNotifications());
+        S.cOta.addEventListener('characteristicvaluechanged',e=>
+          log('rx','← 0013 '+hex(new Uint8Array(e.target.value.buffer))+'  (write ack)'));
+      }catch(e){}
+    }
+    if(S.cConnIv&&(S.cConnIv.properties.notify||S.cConnIv.properties.indicate)){
+      try{
+        await gatt('ffff subscribe', ()=>S.cConnIv.startNotifications());
+        S.cConnIv.addEventListener('characteristicvaluechanged',e=>
+          log('rx','← ffff '+hex(new Uint8Array(e.target.value.buffer))+'  (conn interval)'));
+      }catch(e){}
+    }
+
+    /* Deliberately NOT writing fffd. A packet capture of the stock app shows
+       it never touches that characteristic — not once. fffd is _C1DIP_, which
+       belongs to a different device class and sits directly beside fffe, the
+       disconnect command. Writing it every couple of seconds as a "keep-alive"
+       silently killed the session right after the first successful exchange. */
+
+    /* Survey last: it is only for diagnostics and costs GATT time. */
+    if(SURVEY){
+      log('hd','── survey');
+      for(const c of mainChars) log('in','    CHR '+c.uuid+'  ['+props(c)+']');
+      for(const sv of other){
+        try{
+          const cs=await sv.getCharacteristics();
+          log('in','  SVC '+sv.uuid+'  ('+cs.length+')');
+          for(const c of cs){
+            S.chars[c.uuid.toLowerCase()]=c;
+            log('in','    CHR '+c.uuid+'  ['+props(c)+']');
+          }
+        }catch(e){}
+      }
+    }
+
+    S.chunkSeq=1; S.rxParts=[]; S.retries=0; S.live=true;   // counter seeded by handshake()
+    setLink('Linked','on'); showLiveUI(); toast('Connected');
+    log('hd','── session ready ('+(Date.now()-t0)+'ms)'+(S.authOk?'':'   [UNAUTHENTICATED]'));
+    if(!S.authOk){
+      log('er','   not authenticated — the module will drop this link in a moment.');
+      log('hd','── probing what this device will allow (diagnostic)');
+      for(const [name,u] of [['f000',C_F000],['f004',C_CHAL],['f005',C_RESP],
+                             ['f008',C_F008],['f011',C_KEYEXC],['fffd',C_CTRL],
+                             ['ffff',C_CONNIV]]){
+        const c=pickChar(u);
+        if(!c){ log('in','    '+name+' absent'); continue; }
+        if(!c.properties.read){ log('in','    '+name+' not readable ['+props(c)+']'); continue; }
+        try{
+          const dv=await gatt(name+' read', ()=>c.readValue());
+          log('rx','    '+name+' = '+hex(new Uint8Array(dv.buffer)));
+        }catch(e){ log('er','    '+name+' read rejected'); }
+      }
+      throw new Error('Authentication failed — see the key exchange above');
+    }
+
+    /* No ENABLE_REPORT: this unit answers it with INVALID_TYPE, and the stock
+       app never sends it either. Status comes from polled GET_DATA. */
+
+    refresh().catch(e=>log('er','   first refresh: '+describe(e)));
+
+    clearInterval(poll);
+    poll=setInterval(()=>{
+      /* Never overlap: a pending reply must resolve first, or requests pile up
+         and every one of them times out. The stock app does not poll on a timer
+         at all — it reads once after each change. */
+      if(S.live && !S.busy && !S.pending) refresh().catch(()=>{});
+    },5000);
+
+    clearInterval(keepAlive); keepAlive=null;   // no keep-alive: see above
+
+  }catch(e){
+    const d=describe(e);
+    log('er','!! '+d+'   (t+'+(Date.now()-t0)+'ms)');
+    explain(e);
+    toast(errText(e),true);
+    setLink('Offline',''); S.live=false;
+    if(!S.dev){
+      stratIdx++;
+      if(stratIdx<STRATEGIES.length)
+        log('in','   next tap will try ['+(stratIdx+1)+'/'+STRATEGIES.length+'] '+STRATEGIES[stratIdx].name);
+      else { stratIdx=0; log('er','   all variants exhausted — wrapping to the first'); }
+      S.giveUp=true; showConnectUI(); return;
+    }
+    const cancelled = /NotFoundError|cancel|chooser|user/i.test(d);
+    if(cancelled){ S.giveUp=true; showConnectUI(); } else scheduleReconnect();
+  }
+}
+
+/* Turn any thrown value into something readable. WebKit DOMExceptions often
+   have an empty .message, and Bluefy's shim throws bare numbers — both of
+   which previously logged as "undefined" and told us nothing. */
+function describe(e){
+  if(e==null) return 'null/undefined thrown';
+  if(typeof e==='number') return 'shim error code '+e;
+  if(typeof e==='string') return e;
+  const bits=[];
+  if(e.name) bits.push(e.name);
+  if(e.message) bits.push(e.message);
+  if(!bits.length){
+    try{ bits.push(String(e)); }catch(_){}
+    try{ const j=JSON.stringify(e); if(j&&j!=='{}') bits.push(j); }catch(_){}
+  }
+  if(e.constructor&&e.constructor.name&&e.constructor.name!=='Object') bits.push('['+e.constructor.name+']');
+  if(typeof e.code==='number') bits.push('code='+e.code);
+  return bits.filter(Boolean).join(' ') || 'unrecognised exception';
+}
+function errText(e){
+  if(typeof e==='number') return 'Bluefy returned code '+e+' — tap Connect again for the next variant';
+  const d=describe(e);
+  if(/NotFoundError/i.test(d)) return 'No matching device — tap Connect again to widen the search';
+  if(/SecurityError|NotAllowed/i.test(d)) return 'Blocked — page must be https:// and the tap must reach Bluetooth directly';
+  if(/NetworkError/i.test(d)) return 'Device refused the connection';
+  return d.slice(0,120);
+}
+function explain(e){
+  if(typeof e==='number'){
+    log('er','   -> Bluefy returned a bare error code. If the picker was empty,');
+    log('er','      nothing matched the filter. Tap Connect again for the next variant.');
+    return;
+  }
+  const d=describe(e);
+  if(/globally disabled/i.test(d)){
+    log('er','   -> Brave ships with Web Bluetooth switched off.');
+    log('er','      brave://flags -> search "blue" -> Web Bluetooth API = Enabled');
+    log('er','      -> Relaunch. Chrome needs no such change.');
+    return;
+  }
+  if(/Bluetooth adapter not available|NotSupportedError/i.test(d) && /Android/i.test(navigator.userAgent)){
+    log('er','   -> On Android, BLE scanning also needs system Location Services on.');
+    return;
+  }
+  if(/SecurityError|NotAllowed/i.test(d)){
+    log('er','   -> Web Bluetooth refused the request.');
+    log('er','      the page must be https:// and the tap must reach requestDevice');
+    log('er','      with no await in between. secureContext='+window.isSecureContext);
+  } else if(/NotFoundError/i.test(d)){
+    log('in','   -> picker dismissed, or nothing matched. Tap Connect again.');
+  }
+}
+
+/* ── data carousel (ZEBleDevice::readDataCarouselFromCharacteristic) ────
+   Repeated reads of one characteristic. Each returns a 1-byte header then a
+   fixed-size block: header low nibble is a 1-based sequence number, bit 0x80
+   marks the final block. Used for the wrapped local-key blob on f011.     */
+async function readCarousel(c, blockSize){
+  const out=[]; let expect=1;
+  for(let i=0;i<16;i++){
+    const dv=await gatt('carousel read', ()=>c.readValue());
+    const b=new Uint8Array(dv.buffer);
+    if(!b.length) break;
+    const seq=b[0]&0x0F, last=!!(b[0]&0x80);
+    if(seq!==expect){
+      if(out.length===0) continue;            // wait for the first block
+      throw new Error('packet lost (seq '+seq+', expected '+expect+')');
+    }
+    out.push(b.subarray(1, blockSize? 1+blockSize : b.length));
+    expect=(expect%15)+1;
+    if(last) break;
+  }
+  const n=out.reduce((a,x)=>a+x.length,0);
+  const buf=new Uint8Array(n); let o=0;
+  for(const x of out){ buf.set(x,o); o+=x.length; }
+  return buf;
+}
+
+/* The wrapped key blob. We cannot unwrap it — that was a server round-trip
+   (request:"decryptLocalKey") — but dumping it is worth doing on a unit whose
+   plaintext key is already known, since plaintext plus ciphertext is the only
+   way to learn anything about the wrapping. */
+async function dumpKeyBlob(){
+  if(!S.live){ toast('Connect first',true); return; }
+  const c=pickChar(C_KEYEXC);
+  if(!c){ toast('f011 not present',true); return; }
+  log('hd','── reading wrapped key blob from f011');
+  try{
+    const blob=await readCarousel(c,16);
+    if(!blob.length){ log('er','   f011 returned nothing'); toast('f011 empty',true); return; }
+    log('rx','   blob ('+blob.length+' B): '+hex(blob));
+    log('in','   this is the key WRAPPED by the device/server shared secret.');
+    log('in','   Aplix decrypted it server-side via request:"decryptLocalKey".');
+    toast('Blob captured — see the wire log');
+  }catch(e){
+    log('er','   f011 carousel read failed: '+describe(e));
+    toast('f011 read failed',true);
+  }
+}
+
+/* ── localKey handshake ─────────────────────────────────────────────────
+   From ZEBleHDevice::didFinishHandshake -> selectKey, then
+   ZEBleCramFunction::ZEEM007 -> _EM001_ :
+
+     read  f004 -> deviceChallenge (16B)
+     write f005 <- AES-128-ECB(localKey, deviceChallenge)
+     write f004 <- our 16 random bytes
+     read  f005 -> deviceResponse, verify == AES(localKey, ourChallenge)
+     counterOfSend    = BE u32 deviceChallenge[12:16]
+     counterOfReceive = BE u32 ourChallenge[12:16]
+
+   Verified byte-for-byte against a sniffer capture of the stock app.
+
+   The key SELECTOR (f012) is a complication. In that capture the app only
+   writes it after already completing one challenge round with a different
+   key — one we do not have — and this unit rejects the write on an
+   unauthenticated link. But the same capture proves the local key lives in
+   slot 1, and the selection persists, so a fresh client can usually just
+   authenticate against whatever slot is already active.
+
+   So: try the challenge round first, and only fall back to writing the
+   selector if that fails. Never treat a selector failure as fatal.       */
+
+async function authRound(label, t0){
+  const el=()=>'+'+(Date.now()-t0)+'ms';
+
+  let dChal;
+  try{
+    const dv=await gatt('f004 read challenge', ()=>S.cChal.readValue());
+    dChal=new Uint8Array(dv.buffer);
+    log('rx','← f004 '+hex(dChal)+'  ('+label+')  '+el());
+  }catch(e){ log('er','   f004 read failed ('+label+')'); return false; }
+  if(dChal.length<16){ log('er','   challenge was '+dChal.length+'B, expected 16'); return false; }
+  dChal=dChal.slice(0,16);
+
+  const resp=await aesBlock(dChal);
+  let myChal=new Uint8Array(16);
+  do{ crypto.getRandomValues(myChal); }while(hex(myChal)===hex(dChal));
+
+  try{
+    await gatt('f005 write response', ()=>S.cResp.writeValue(resp));
+    log('tx','→ f005 '+hex(resp)+'  (our response)  '+el());
+  }catch(e){
+    log('er','   the device REJECTED our response — wrong key for this slot');
+    return false;
+  }
+
+  try{
+    await gatt('f004 write challenge', ()=>S.cChal.writeValue(myChal));
+    log('tx','→ f004 '+hex(myChal)+'  (our challenge)  '+el());
+  }catch(e){ log('er','   could not send our challenge'); return false; }
+
+  let dResp=null;
+  try{
+    const dv=await gatt('f005 read response', ()=>S.cResp.readValue());
+    dResp=new Uint8Array(dv.buffer);
+    log('rx','← f005 '+hex(dResp)+'  (device response)  '+el());
+  }catch(e){ log('er','   could not read the device response'); return false; }
+
+  const want=await aesBlock(myChal);
+  if(hex(dResp.slice(0,16))!==hex(want)){
+    log('er','   DEVICE RESPONSE MISMATCH — this slot holds a different key');
+    log('er','     got  '+hex(dResp.slice(0,16)));
+    log('er','     want '+hex(want));
+    return false;
+  }
+
+  S.counter   = ((dChal[12]<<24)|(dChal[13]<<16)|(dChal[14]<<8)|dChal[15])>>>0;
+  S.rxCounter = ((myChal[12]<<24)|(myChal[13]<<16)|(myChal[14]<<8)|myChal[15])>>>0;
+  log('in','   counterOfSend='+S.counter+'  counterOfReceive='+S.rxCounter);
+  return true;
+}
+
+async function trySelectKey(keyId, t0){
+  const sel=Uint8Array.of((keyId>>8)&0xFF, keyId&0xFF);
+  for(const [how,fn] of [
+      ['write', ()=>S.cKeySel.writeValue(sel)],
+      ['write-no-response', ()=>S.cKeySel.writeValueWithoutResponse
+          ? S.cKeySel.writeValueWithoutResponse(sel) : Promise.reject(0)]]){
+    try{
+      await gatt('f012 select key '+keyId+' ('+how+')', fn);
+      log('tx','→ f012 '+hex(sel)+'  (key '+keyId+', '+how+')  +'+(Date.now()-t0)+'ms');
+      return true;
+    }catch(e){}
+  }
+  return false;
+}
+
+async function handshake(t0){
+  S.authOk=false; S.counter=0; S.rxCounter=0;
+  if(!AESKEY){ log('er','── no local key loaded — nothing to authenticate with'); return; }
+  if(!S.cChal||!S.cResp){
+    log('er','── f004/f005 missing — cannot authenticate');
+    return;
+  }
+  log('hd','── key exchange  +'+(Date.now()-t0)+'ms   (unauthenticated links drop at ~5000ms)');
+
+  /* 0. session unlock — without this the module rejects every read */
+  await writeUnlock(t0);
+
+  /* 1. the currently-selected slot — usually already the local key */
+  if(await authRound('current slot', t0)){ S.authOk=true; log('hd','── AUTHENTICATED  +'+(Date.now()-t0)+'ms'); return; }
+
+  /* 2. try naming the slot explicitly, then re-authenticate */
+  if(S.cKeySel){
+    log('in','   retrying: fffe mode byte, unlock, then explicit key selection');
+    /* the capture writes 0x80 to fffe here (NOT 0x00 — that is disconnect) */
+    const fe=pickChar(C_DISC);
+    if(fe){
+      try{
+        const f=fe.properties.writeWithoutResponse&&fe.writeValueWithoutResponse;
+        await gatt('fffe write 80', ()=> f ? fe.writeValueWithoutResponse(Uint8Array.of(0x80))
+                                            : fe.writeValue(Uint8Array.of(0x80)));
+        log('tx','→ fffe 80  +'+(Date.now()-t0)+'ms');
+      }catch(e){}
+    }
+    await writeUnlock(t0);
+    for(const keyId of [1,0]){
+      if(!await trySelectKey(keyId, t0)){
+        log('in','   f012 rejected for key '+keyId+' (expected on an unauthenticated link)');
+        continue;
+      }
+      if(await authRound('after selecting key '+keyId, t0)){
+        S.authOk=true; log('hd','── AUTHENTICATED  +'+(Date.now()-t0)+'ms'); return;
+      }
+    }
+  }
+
+  log('er','── key exchange did NOT complete');
+  log('er','   The stock app authenticates once with a key we do not have before');
+  log('er','   the selector write is accepted. If the challenge round above also');
+  log('er','   failed, this unit is not currently on the local-key slot.');
+}
+
+function scheduleReconnect(){
+  if(!AUTO_RECONNECT||S.giveUp||!S.dev){ showConnectUI(); return; }
+  if(S.retries>=6){ log('er','── giving up after 6 attempts'); showConnectUI(); return; }
+  const wait=Math.min(800*Math.pow(1.7,S.retries),12000);
+  S.retries++;
+  log('in','── reconnect '+S.retries+'/6 in '+Math.round(wait)+'ms');
+  clearTimeout(reconnectT);
+  reconnectT=setTimeout(()=>connect(false),wait);
+}
+
+function onDrop(){
+  S.gen++;                       // invalidates any setup still in flight
+  clearInterval(poll); clearInterval(keepAlive); poll=keepAlive=null;
+  /* Abandon any in-flight request and reset the queue, otherwise a stale
+     6s timeout from the dead session fires in the middle of the next one. */
+  if(S.pending){ clearTimeout(S.pending.timer); S.pending.reject(new Error('link dropped')); S.pending=null; }
+  _gattChain=Promise.resolve();
+  S.rxParts=[]; S.ctrlOk=true; S.authOk=false;
+  const wasUp=S.live; S.live=false;
+  setLink('Offline','');
+  log('er','── link dropped'+(wasUp?' (was established)':' (during setup)'));
+  paint();
+  scheduleReconnect();
+}
+async function disconnect(){
+  S.giveUp=true;
+  clearInterval(poll); clearInterval(keepAlive); clearTimeout(reconnectT);
+  poll=keepAlive=null;
+  if(S.pending){ clearTimeout(S.pending.timer); S.pending=null; }
+  _gattChain=Promise.resolve();
+  try{ if(S.dev&&S.dev.gatt.connected) S.dev.gatt.disconnect(); }catch(e){}
+  S.live=false; setLink('Offline',''); showConnectUI(); paint();
+}
+
+/* rx ------------------------------------------------------------------ */
+async function onChunk(ev){
+  const p=new Uint8Array(ev.target.value.buffer);
+  log('rx','← 0010 '+hex(p));
+  if(p.length<3) return;
+  const isStart=!!(p[0]>>7&1), isEnd=!!(p[0]>>6&1), len=p[2]&0x1F;
+  const tag=p[0]+':'+p[1];
+
+  /* The module retransmits the last chunk until it is acknowledged, so the
+     same fragment can arrive several times. Drop exact repeats. */
+  if(tag===S.rxLast && !isStart){
+    log('in','   (duplicate chunk — device is waiting for the ack)');
+    await sendInAck();
+    return;
+  }
+  S.rxLast=tag;
+
+  if(isStart){ S.rxParts=[]; S.rxActive=true; }
+  else if(!S.rxActive){
+    log('in','   (continuation with no start — ignoring)');
+    return;
+  }
+  S.rxParts.push(p.subarray(3,3+len));
+  if(!isEnd) return;
+
+  S.rxActive=false;
+  const total=S.rxParts.reduce((a,b)=>a+b.length,0);
+  const enc=new Uint8Array(total); let o=0;
+  for(const q of S.rxParts){ enc.set(q,o); o+=q.length; }
+  S.rxParts=[];
+
+  /* ACK FIRST. The device will not send anything further until it gets this,
+     and the stock app writes it after every completed block. */
+  await sendInAck();
+
+  try{
+    const cmd=zeParse(await decodeData(enc));
+    const msg=aspeParse(cmd.payload);
+    log('rx','   counter='+cmd.counter+' aspe type=0x'+msg.type.toString(16)+' payload='+hex(msg.payload));
+    S.rxCounter=cmd.counter;
+    if(msg.type===MSG.RESPONSE||msg.type===MSG.DATA_RESPONSE) logResponse(msg);
+    if(S.pending){ const r=S.pending; S.pending=null; clearTimeout(r.timer); r.resolve(msg); }
+    if(msg.type===MSG.INPUT_REPORT||msg.type===MSG.SET_DATA)
+      for(const b of reportBlocks(msg.payload)) if(b.type===DT.STATUS) applyStatus(b.data);
+  }catch(e){ log('er','   decode: '+e.message+'  raw='+hex(enc)); }
+}
+
+/* Write 0x00 to characteristic 00000011 — the data-chunk input ack. */
+async function sendInAck(){
+  if(!S.cIna) return;
+  try{
+    const fast=S.cIna.properties.writeWithoutResponse&&S.cIna.writeValueWithoutResponse;
+    await gatt('0011 ack', ()=> fast ? S.cIna.writeValueWithoutResponse(Uint8Array.of(0x00))
+                                     : S.cIna.writeValue(Uint8Array.of(0x00)));
+    log('tx','→ 0011 00  (rx ack)');
+  }catch(e){ log('er','   0011 ack failed'); }
+}
+
+const RESP_CODE={1:'SUCCESS',2:'INVALID_TYPE',3:'INVALID_DATA_TYPE',4:'INVALID_PARAM',
+                 5:'UNSUPPORTED',6:'REJECTED',7:'CHECKSUM',8:'UNKNOWN',9:'FATAL'};
+function logResponse(msg){
+  const p=msg.payload;
+  if(p.length===1) log('in','   response: '+(RESP_CODE[p[0]]||('0x'+p[0].toString(16))));
+  else for(let i=0;i+1<p.length;i+=2)
+    log('in','   response: dataType=0x'+p[i].toString(16)+' -> '+(RESP_CODE[p[i+1]]||p[i+1]));
+}
+
+function applyStatus(d){
+  if(d.length!==11){ log('er','   status len '+d.length+' (expected 11)'); return; }
+  const bcd=a=>a.reduce((v,b)=>v*100+(b>>4)*10+(b&15),0);
+  let w=d[1]; w=(w===0xFF)?0:w+1;
+  S.state={ power:d[0]===1, wind:w, auto:d[2]===1, timer:d[3], uv:d[4]===1,
+            aq:bcd(d.slice(5,7)), filt:(d[7]<<8)|d[8], bulb:(d[9]<<8)|d[10] };
+  paint();
+}
+
+/* tx ------------------------------------------------------------------ */
+async function send(aspeMsg, expectReply){
+  if(expectReply===undefined) expectReply=true;
+  if(!S.cOut) throw new Error('Not connected');
+  const enc=await encodeData(zeCommand(aspeMsg,S.counter++,FUNCTION_NUMBER));
+  const pdus=chunk(enc,S.chunkSeq);
+  S.chunkSeq=(S.chunkSeq%15)+1;
+  log('tx','→ aspe '+hex(aspeMsg));
+  const fast=S.cOut.properties.writeWithoutResponse && S.cOut.writeValueWithoutResponse;
+  for(const p of pdus){
+    await gatt('0012 chunk', ()=> fast ? S.cOut.writeValueWithoutResponse(p)
+                                       : S.cOut.writeValue(p));
+    log('tx','  0012 '+hex(p));
+  }
+  if(!expectReply) return null;
+  return new Promise((resolve,reject)=>{
+    const timer=setTimeout(()=>{
+      S.pending=null;
+      log('er','   no reply within 6s — the device stopped acknowledging writes');
+      reject(new Error('Device did not reply'));
+    },6000);
+    S.pending={resolve,reject,timer};
+  });
+}
+async function refresh(){ return send(aspeBuild(MSG.GET_DATA,[DT.STATUS])); }
+
+async function apply(args){
+  if(S.busy||!S.live) return; S.busy=true;
+  const prev={...S.state};
+  optimistic(args); paint();
+  try{
+    const entries=[]; let powered=true;
+    if('power' in args){ entries.push([DT.POWER,[args.power?1:0]]); powered=!!args.power; }
+    if(powered){
+      if('auto'  in args) entries.push([DT.AUTO ,[args.auto?1:0]]);
+      if('wind'  in args) entries.push([DT.WIND ,[args.wind-1]]);
+      if('timer' in args) entries.push([DT.TIMER,[args.timer]]);
+      if('uv'    in args) entries.push([DT.UV   ,[args.uv?1:0]]);
+    }
+    await send(aspeBuild(MSG.SET_DATA,aspeData(entries)));
+    setTimeout(()=>refresh().catch(()=>{}),350);
+  }catch(e){
+    S.state=prev; paint(); toast(e.message,true); log('er','!! '+e.message);
+  }finally{ S.busy=false; }
+}
+function optimistic(a){
+  if('power' in a){ S.state.power=a.power; if(!a.power){S.state.wind=0;S.state.timer=0;} }
+  if('auto'  in a) S.state.auto=a.auto;
+  if('wind'  in a){ S.state.wind=a.wind; S.state.auto=false; }
+  if('timer' in a) S.state.timer=a.timer;
+  if('uv'    in a) S.state.uv=a.uv;
+}
+
+
+/* ── UI ─────────────────────────────────────────────────────────────── */
+const $=id=>document.getElementById(id);
+
+function show(id,on){ const e=$(id); if(e) e.classList.toggle('hidden',!on); }
+function screen(name){
+  show('setupScreen',      name==='setup');
+  show('connectionScreen', name==='connecting');
+  show('mainContent',      name==='main');
+}
+
+let toastT;
+function toast(msg,err){
+  const t=$('toast'); t.textContent=msg; t.className='toast show'+(err?' err':'');
+  clearTimeout(toastT); toastT=setTimeout(()=>t.className='toast',3000);
+}
+function setLink(txt){ const e=$('connectionTitle'); if(e) e.textContent=txt; }
+function setLinkText(txt){ const e=$('connectionText'); if(e) e.textContent=txt||''; }
+
+let logN=0;
+function log(cls,txt){
+  const line=new Date().toISOString().substr(14,9)+' '+txt;
+  for(const id of ['debugInfo','mainLog']){
+    const box=$(id); if(!box) continue;
+    const d=document.createElement('div'); d.className='log-'+cls; d.textContent=line;
+    box.appendChild(d); box.scrollTop=box.scrollHeight;
+    while(box.children.length>500) box.removeChild(box.firstChild);
+  }
+  logN++;
+}
+
+/* ── settings in the URL fragment ───────────────────────────────────── */
+function loadFromHash(){
+  const h=location.hash.replace(/^#/,''); if(!h) return;
+  const p=new URLSearchParams(h);
+  if(p.get('key'))    $('keyIn').value=p.get('key');
+  if(p.get('uuid'))   $('devUuid').value=p.get('uuid');
+  if(p.get('unlock')) $('unlockHex').value=p.get('unlock');
+}
+function refreshShareUrl(){
+  const p=new URLSearchParams();
+  const k=$('keyIn').value.trim();
+  if(k) p.set('key',k);
+  p.set('uuid',$('devUuid').value.trim());
+  const u=$('unlockHex').value.trim();
+  if(u && u.toLowerCase()!=='8dc4f3ee') p.set('unlock',u);
+  const url=location.origin+location.pathname+'#'+p.toString();
+  const el=$('shareUrl'); if(el) el.textContent = k ? url : 'pair first to get a key';
+  const pn=$('pairNote');
+  if(pn) pn.style.display = k ? 'none' : '';
+  return url;
+}
+
+/* ── PAIRING ─────────────────────────────────────────────────────────
+   The purifier holds its local key on characteristic f011, readable via the
+   same data carousel the stock app uses (1-byte header: low nibble = 1-based
+   sequence, bit 0x80 = final block; then a fixed 16-byte block).
+
+   We don't need to know how, or whether, that blob is wrapped — the device
+   itself is the oracle. The session handshake is a MUTUAL challenge/response,
+   so a candidate key can simply be tried: encrypt the device's challenge, and
+   check the device's own answer against AES(candidate, ourChallenge). Only a
+   correct key passes, and a wrong one cannot produce a false positive.
+
+   So pairing is: read f011, derive candidate 16-byte keys from whatever comes
+   back, and test each one against a live handshake. Whichever authenticates
+   is the key.                                                              */
+
+function keyCandidates(blob){
+  const out=[]; const seen=new Set();
+  const add=(b,why)=>{
+    if(!b || b.length!==16) return;
+    const h=hex(b);
+    if(seen.has(h)) return;
+    seen.add(h); out.push({bytes:b,why});
+  };
+  add(blob.slice(0,16),'first 16 bytes');
+  if(blob.length>16){
+    add(blob.slice(blob.length-16),'last 16 bytes');
+    for(let o=16;o+16<=blob.length;o+=16) add(blob.slice(o,o+16),'offset '+o);
+  }
+  return out;
+}
+
+/* ── PAIRING via the Product Beacon ──────────────────────────────────
+   Hold the LINK button and the purifier starts advertising from THREE extra
+   random static addresses (its public address with the top byte replaced by
+   c1/c2/c3). Confirmed on hardware:
+
+     c1  iBeacon  00000000-7062-1001-b000-001c4d8aa76c
+     c2  iBeacon  e7a5423f-3be6-1801-a753-001c4ddf8534   <- the "Product Beacon"
+                  major/minor carry uniqueId, e.g. 000FEDF1
+     c3  ADV_SCAN_IND, manufacturer data, company 0x00BD (Aplix):
+                  [0:2] company  [2:6] uniqueId  [6:22] SIXTEEN BYTES
+
+   Those 16 bytes are the key material. guardian.js finds registerable units by
+   exactly this beacon, which is why pairing works with no server at all.
+
+   Web Bluetooth can read it: pick the device, watchAdvertisements(), then take
+   manufacturerData for company 0x00BD. Each candidate is then proved against a
+   live mutual handshake, so a wrong guess cannot slip through.            */
+const APLIX_COMPANY = 0x00BD;
+
+/* The spec says advertisementreceived.manufacturerData is a Map<int,DataView>,
+   but Bluefy hands back something else ("md.forEach is not a function"). Accept
+   every plausible shape and report what actually arrived. */
+function toBytes(v){
+  if(!v) return null;
+  if(v instanceof Uint8Array) return v;
+  if(v instanceof ArrayBuffer) return new Uint8Array(v);
+  if(ArrayBuffer.isView(v)) return new Uint8Array(v.buffer,v.byteOffset,v.byteLength);
+  if(Array.isArray(v)) return Uint8Array.from(v);
+  return null;
+}
+function entriesOf(md){
+  /* -> array of [companyId|null, Uint8Array] */
+  const out=[];
+  if(!md) return out;
+  try{
+    if(typeof md.forEach==='function' && !Array.isArray(md)){
+      md.forEach((v,k)=>{ const b=toBytes(v); if(b) out.push([Number(k),b]); });
+      if(out.length) return out;
+    }
+  }catch(e){}
+  if(Array.isArray(md)){
+    for(const it of md){
+      if(!it) continue;
+      const b=toBytes(it.data!==undefined?it.data:it);
+      const c=(it.companyIdentifier!==undefined)?Number(it.companyIdentifier)
+             :(it.company!==undefined)?Number(it.company):null;
+      if(b) out.push([c,b]);
+    }
+    if(out.length) return out;
+  }
+  const direct=toBytes(md);
+  if(direct){ out.push([null,direct]); return out; }
+  try{
+    for(const k of Object.keys(md)){
+      const b=toBytes(md[k]);
+      if(b) out.push([Number(k),b]);
+    }
+  }catch(e){}
+  return out;
+}
+function describeShape(v){
+  if(v===undefined) return 'undefined';
+  if(v===null) return 'null';
+  const t=Object.prototype.toString.call(v);
+  let extra='';
+  try{
+    if(Array.isArray(v)) extra=' len='+v.length;
+    else if(typeof v==='object') extra=' keys=['+Object.keys(v).slice(0,6).join(',')+']';
+  }catch(e){}
+  return t+extra;
+}
+
+async function pair(){
+  screen('connecting');
+  setLink('Pairing');
+  setLinkText('Press and HOLD the LINK button now.');
+  log('hd','── PAIRING via the Product Beacon');
+
+  if(!S.dev){ log('er','   no device selected'); screen('setup'); return; }
+
+  let found=null, advCount=0, shapeLogged=false;
+
+  const consider=(company,raw,where)=>{
+    if(!raw||raw.length<16) return;
+    log('rx','   '+where+(company!=null?' company=0x'+company.toString(16).toUpperCase().padStart(4,'0'):'')+
+             ' ('+raw.length+'B) '+hex(raw));
+    setLinkText('saw '+raw.length+'B of data — checking…');
+    let key=null, uid=null;
+    if(company===APLIX_COMPANY && raw.length>=20){ uid=raw.slice(0,4); key=raw.slice(4,20); }
+    else if(raw.length>=22 && raw[0]===(APLIX_COMPANY&0xFF) && raw[1]===(APLIX_COMPANY>>8)){
+      uid=raw.slice(2,6); key=raw.slice(6,22);
+    }
+    else if(company===APLIX_COMPANY && raw.length>=16){ key=raw.slice(raw.length-16); }
+    else if(company==null && raw.length>=20){ key=raw.slice(raw.length-16); }
+    if(key && key.length===16 && !found){
+      found={key,uid};
+      log('hd','   APLIX BEACON'+(uid?'  uniqueId='+hex(uid).toUpperCase():'')+'  key='+hex(key));
+    }
+  };
+
+  const onAdv=ev=>{
+    advCount++;
+    try{
+      if(!shapeLogged){
+        shapeLogged=true;
+        log('hd','   first advertisement — shape report');
+        for(const k of ['name','rssi','txPower','manufacturerData','serviceData','uuids'])
+          log('in','     ev.'+k+' = '+describeShape(ev[k]));
+      }
+      for(const [c,bb] of entriesOf(ev.manufacturerData)) consider(c,bb,'mfg');
+      for(const [c,bb] of entriesOf(ev.serviceData))      consider(null,bb,'svcdata');
+    }catch(e){ log('er','   adv parse: '+describe(e)); }
+  };
+
+  try{
+    if(!S.dev.watchAdvertisements){
+      throw new Error('This browser cannot read advertisements (watchAdvertisements missing). Try Chrome on Android.');
+    }
+    S.dev.addEventListener('advertisementreceived',onAdv);
+    await S.dev.watchAdvertisements();
+    log('in','   watching advertisements on "'+(S.dev.name||'(no name)')+'"');
+
+    for(let i=0;i<30 && !found;i++){
+      setLinkText('Keep holding LINK… ('+(i+1)+'/30)   ads seen: '+advCount);
+      await new Promise(r=>setTimeout(r,1000));
+    }
+    try{ S.dev.removeEventListener('advertisementreceived',onAdv); }catch(e){}
+    try{ if(S.dev.unwatchAdvertisements) S.dev.unwatchAdvertisements(); }catch(e){}
+
+    if(!found){
+      log('er','   no Aplix beacon in '+advCount+' advertisement(s) from this device.');
+      setLink('Not this one');
+      setLinkText(advCount+' ads seen, no key. Tap Pair again and choose a different device.');
+      await new Promise(r=>setTimeout(r,2600));
+      screen('setup');
+      return;
+    }
+
+    /* Harvest only. The beacon is NON-CONNECTABLE (ADV_SCAN_IND /
+       ADV_NONCONN_IND), so gatt.connect() on it never settles — that is
+       exactly what made the screen freeze. Verification happens afterwards
+       as an ordinary Connect against the real, connectable address. */
+    /* IMPORTANT: this is NOT the local key. Measured across three sessions the
+       value rotates every time (87966dcd…, b3d211af…, 41ebe8a6…) while the
+       device's real key stays fixed, so it is a per-session challenge/token.
+       It is kept because the connection-side exchange almost certainly needs
+       it, but it must never be presented as a key. */
+    const b64=btoa(String.fromCharCode.apply(null,Array.from(found.key)));
+    S.pairToken=found.key;
+    S.pairUid=found.uid||null;
+    log('hd','── PAIRING TOKEN: '+hex(found.key));
+    log('in','   uniqueId '+(found.uid?hex(found.uid).toUpperCase():'?'));
+    log('in','   This rotates per session, so it is a challenge, not the key.');
+    log('in','   The key itself moves inside the connection, which we have not');
+    log('in','   captured yet. Token stored in case the exchange needs it.');
+
+    setLink('Token read');
+    setLinkText('This is a rotating challenge, not the key.');
+    await new Promise(r=>setTimeout(r,1500));
+    screen('setup');
+    const kb=$('keyFound');
+    if(kb){
+      kb.style.borderColor='#FFA726';
+      kb.style.background='rgba(255,167,38,.12)';
+      kb.innerHTML='<b>Pairing token read</b> (uniqueId '+
+        (found.uid?hex(found.uid).toUpperCase():'?')+')<br>'+hex(found.key)+
+        '<br><br>This value changes every session, so it is a challenge — not '+
+        'the local key. The key is exchanged over the connection, which has '+
+        'not been captured yet. If you already know your key, paste it above '+
+        'and tap Connect.';
+      kb.style.display='';
+    }
+
+  }catch(e){
+    log('er','!! pairing: '+describe(e));
+    toast(errText(e),true);
+    S.giveUp=true; clearTimeout(reconnectT);
+    try{ S.dev.removeEventListener('advertisementreceived',onAdv); }catch(_){}
+    screen('setup');
+    const bx=$('debugInfo'); if(bx) bx.classList.remove('console-hidden');
+  }
+}
+
+/* ── device-data probe ───────────────────────────────────────────────
+   f007 is _charDeviceDataSelect and f008 is _charDeviceDataAccess: a
+   select/access register pair. Write an index to f007, read the value from
+   f008. The stock app uses this for device metadata; whether anything useful
+   (a key, a serial, a registration blob) is reachable this way is unknown, so
+   walk the index space and log whatever comes back.                        */
+async function probeDeviceData(){
+  if(!S.dev||!S.dev.gatt.connected){ toast('Connect first',true); return; }
+  const sel=pickChar(C_F007), acc=pickChar(C_F008);
+  if(!sel||!acc){ toast('f007/f008 not present',true); return; }
+  log('hd','── probing f007/f008 device-data registers');
+  const box=$('mainLog'); if(box) box.classList.remove('console-hidden');
+  let hits=0;
+  for(let i=0;i<=0xFF;i++){
+    if(!S.dev.gatt.connected){ log('er','   link dropped during probe'); break; }
+    try{ await writeUnlock(Date.now()); }catch(e){}
+    try{
+      const v=Uint8Array.of(i);
+      const fast=sel.properties.writeWithoutResponse&&sel.writeValueWithoutResponse;
+      await gatt('f007 sel', ()=> fast? sel.writeValueWithoutResponse(v): sel.writeValue(v));
+    }catch(e){ continue; }
+    try{
+      const dv=await gatt('f008 read', ()=>acc.readValue());
+      const b=new Uint8Array(dv.buffer);
+      if(b.length){ hits++; log('rx','   f007=0x'+i.toString(16).padStart(2,'0')+
+                                    '  f008 ('+b.length+'B) = '+hex(b)); }
+    }catch(e){ /* not readable for this index */ }
+    if(i%32===31) log('in','   … probed through 0x'+i.toString(16));
+  }
+  log('hd','── probe done: '+hits+' index/indices returned data');
+  toast(hits? hits+' responses — see the log' : 'No index returned data', !hits);
+}
+
+/* ── painting the original UI ───────────────────────────────────────── */
+const AQ_MAX=650;
+function aqClass(v){ return v==null?'':(v<=150?'':(v<=350?'moderate':'unhealthy')); }
+function aqLabel(v){ return v==null?'—':(v<=150?'GOOD':(v<=350?'MODERATE':'UNHEALTHY')); }
+
+function paint(){
+  const s=S.state, live=S.live;
+
+  const banner=$('airQualityBanner');
+  if(banner){ banner.textContent=aqLabel(s.aq); banner.className='air-quality-banner '+aqClass(s.aq); }
+  const pv=$('particulateValue'); if(pv) pv.textContent = s.aq==null?'--':s.aq;
+
+  const bars=$('speedBars');
+  if(bars) [...bars.children].forEach((b,i)=>b.classList.toggle('active', s.power && i<s.wind));
+
+  const pt=$('powerToggle'); if(pt){ pt.checked=s.power; pt.disabled=!live; }
+  const at=$('autoToggle');  if(at){ at.checked=s.auto;  at.disabled=!live||!s.power; }
+  const ut=$('uvToggle');    if(ut){ ut.checked=s.uv;    ut.disabled=!live||!s.power; }
+
+  const sb=$('speedButtons');
+  if(sb) [...sb.children].forEach(b=>{
+    b.classList.toggle('active', Number(b.dataset.v)===s.wind && !s.auto);
+    b.disabled=!live||!s.power||s.auto;
+  });
+
+  const ts=$('timerSelect'); if(ts){ ts.value=String(s.timer); ts.disabled=!live||!s.power; }
+  const td=$('timerDisplay'); if(td) td.textContent = s.timer? s.timer+'h' : '--';
+
+  const fpct=s.filt? Math.max(0,100-Math.min(100,s.filt/REPLACE.filter*100)) : null;
+  const bpct=s.bulb? Math.max(0,100-Math.min(100,s.bulb/REPLACE.bulb*100)) : null;
+  const fd=$('filterLifeDisplay'); if(fd) fd.textContent = fpct==null?'--%':Math.round(fpct)+'%';
+  const bd=$('uvLifeDisplay');     if(bd) bd.textContent = bpct==null?'--%':Math.round(bpct)+'%';
+  const fb=$('filterBar'); if(fb) fb.style.width=(fpct||0)+'%';
+  const bb=$('bulbBar');   if(bb) bb.style.width=(bpct||0)+'%';
+  const fh=$('filterHours'); if(fh) fh.textContent = s.filt? s.filt+' / '+REPLACE.filter+' h':'— / — h';
+  const bh=$('bulbHours');   if(bh) bh.textContent = s.bulb? s.bulb+' / '+REPLACE.bulb+' h':'— / — h';
+  const fi=$('filterIndicator'); if(fi) fi.classList.toggle('setting-alert', fpct!=null&&fpct<=0);
+  const ui_=$('uvIndicator');    if(ui_) ui_.classList.toggle('setting-alert', bpct!=null&&bpct<=0);
+}
+
+/* speed buttons */
+(function(){
+  const sb=$('speedButtons'); if(!sb) return;
+  for(let i=1;i<=5;i++){
+    const b=document.createElement('button');
+    b.className='speed-btn'; b.textContent=i; b.dataset.v=i;
+    b.onclick=()=>apply({wind:i});
+    sb.appendChild(b);
+  }
+})();
+
+/* ── theme ──────────────────────────────────────────────────────────── */
+function applyTheme(){
+  const dark=$('darkModeToggle')&&$('darkModeToggle').checked;
+  const amoled=$('amoledModeToggle')&&$('amoledModeToggle').checked;
+  document.body.classList.toggle('dark-mode',dark&&!amoled);
+  document.body.classList.toggle('amoled-mode',amoled);
+}
+if($('darkModeToggle'))   $('darkModeToggle').onchange=applyTheme;
+if($('amoledModeToggle')) $('amoledModeToggle').onchange=applyTheme;
+if(window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches){
+  if($('darkModeToggle')) $('darkModeToggle').checked=true;
+  applyTheme();
+}
+
+/* ── bindings ───────────────────────────────────────────────────────── */
+$('btnConnect').onclick=()=>{
+  const k=$('keyIn').value.trim();
+  if(!k){ toast('No key — use “Pair with purifier”',true); return; }
+  let p; try{ p=pickDevice(); }
+  catch(e){ log('er','!! '+describe(e)); explain(e); toast(errText(e),true); return; }
+  p.catch(()=>{});
+  screen('connecting'); setLink('Connecting'); setLinkText('');
+  connect(true,p);
+};
+
+/* Pairing picker. The beacon that carries the key comes from a DIFFERENT
+   (random static) address than the purifier's normal advertisement, and it only
+   exists while the LINK button is held. Filtering on Aplix manufacturer data
+   makes the picker show that beacon and nothing else — which is the whole point,
+   because every candidate has a blank name and is otherwise impossible to tell
+   apart. Falls back progressively if a browser rejects the filter. */
+const PAIR_PICKERS = [
+  /* Bluefy rejects filters:[{manufacturerData:…}] outright — that rejection is
+     why the Pair button had to be pressed twice. The permissive picker goes
+     first; the filtered ones are kept for browsers that do support them. */
+  { name:'all devices + Aplix manufacturer data',
+    opts:()=>({ acceptAllDevices:true,
+                optionalManufacturerData:[APLIX_COMPANY],
+                optionalServices:optSvcs() }) },
+  { name:'all devices',
+    opts:()=>({ acceptAllDevices:true, optionalServices:optSvcs() }) },
+  { name:'Aplix manufacturer-data filter',
+    opts:()=>({ filters:[{manufacturerData:[{companyIdentifier:APLIX_COMPANY}]}],
+                optionalServices:optSvcs() }) },
+  { name:'FEF8 + Aplix manufacturer data',
+    opts:()=>({ filters:[{services:[ADV_FEF8]}],
+                optionalManufacturerData:[APLIX_COMPANY],
+                optionalServices:optSvcs() }) },
+];
+let pairPickIdx = 0;
+
+$('btnPair').onclick=()=>{
+  if(pairPickIdx>=PAIR_PICKERS.length) pairPickIdx=0;
+  const st=PAIR_PICKERS[pairPickIdx];
+  let p;
+  try{
+    log('hd','── pairing picker ['+(pairPickIdx+1)+'/'+PAIR_PICKERS.length+'] '+st.name);
+    log('in','   the LINK button must ALREADY be held — the beacon only exists then');
+    p=navigator.bluetooth.requestDevice(st.opts());
+  }catch(e){
+    log('er','!! '+describe(e)); explain(e); toast(errText(e),true);
+    pairPickIdx++; return;
+  }
+  p.catch(e=>{
+    log('er','!! picker: '+describe(e));
+    log('in','   tap Pair again to try the next picker variant');
+    pairPickIdx++;
+  });
+  p.then(d=>{ S.dev=d; d.addEventListener('gattserverdisconnected',onDrop); return pair(); })
+   .catch(()=>{ screen('setup'); });
+};
+
+$('btnDisconnect').onclick=()=>{ disconnect(); screen('setup'); };
+$('backBtn').onclick=()=>{ disconnect(); screen('setup'); };
+$('retryBtn').onclick=()=>{ screen('setup'); };
+$('settingsBtn').onclick=()=>{ const p=$('settingsPanel'); if(p) p.classList.toggle('hidden'); };
+$('btnDumpKey').onclick=dumpKeyBlob;
+$('btnProbe').onclick=probeDeviceData;
+$('btnMainLog').onclick=()=>$('mainLog').classList.toggle('console-hidden');
+$('btnCopyLog2').onclick=async()=>{
+  const t=[...$('mainLog').children].map(d=>d.textContent).join('\n');
+  try{ await navigator.clipboard.writeText(t); toast('Log copied'); }catch(e){ toast('Copy failed',true); }
+};
+
+$('powerToggle').onchange=e=>apply({power:e.target.checked});
+$('autoToggle').onchange =e=>apply({auto:e.target.checked});
+$('uvToggle').onchange   =e=>apply({uv:e.target.checked});
+$('timerSelect').onchange=e=>apply({timer:Number(e.target.value)});
+
+$('btnShowLog').onclick=()=>{
+  const b=$('debugInfo'); b.classList.toggle('console-hidden');
+};
+if($('logToggle')) $('logToggle').onchange=e=>{
+  $('debugInfo').classList.toggle('console-hidden',!e.target.checked);
+};
+$('btnCopyLog').onclick=async()=>{
+  const t=[...$('debugInfo').children].map(d=>d.textContent).join('\n');
+  try{ await navigator.clipboard.writeText(t); toast('Log copied'); }
+  catch(e){
+    const ta=document.createElement('textarea'); ta.value=t; document.body.appendChild(ta);
+    ta.select(); try{ document.execCommand('copy'); toast('Log copied'); }catch(_){}
+    document.body.removeChild(ta);
+  }
+};
+for(const id of ['keyIn','devUuid','unlockHex'])
+  if($(id)) $(id).addEventListener('input',refreshShareUrl);
+
+loadFromHash();
+refreshShareUrl();
+screen('setup');
+paint();
+
+log('hd','── Guardian APZ-451 controller v24');
+log('in','   main service '+SVC);
+log('in','   functionNumber 0x'+FUNCTION_NUMBER.toString(16).toUpperCase().padStart(8,'0'));
+(async function selfCheck(){
+  log('hd','── environment');
+  log('in','   secureContext = '+window.isSecureContext);
+  log('in','   origin        = '+location.origin);
+  const ua=navigator.userAgent;
+  const isAndroid=/Android/i.test(ua);
+  const isBrave=!!(navigator.brave&&navigator.brave.isBrave);
+  log('in','   platform      = '+(isAndroid?'Android':/iPhone|iPad/i.test(ua)?'iOS':'desktop'));
+  log('in','   bluetooth API = '+(navigator.bluetooth?'present':'MISSING'));
+  if(!navigator.bluetooth){
+    if(isBrave||/Brave/i.test(ua)){
+      log('er','   → Brave disables Web Bluetooth by default.');
+      log('er','     brave://flags → search "blue" → Web Bluetooth API = Enabled → relaunch.');
+      toast('Brave: enable Web Bluetooth in brave://flags',true);
+    } else {
+      log('er','   → No Web Bluetooth. Use Chrome (Android) or Bluefy (iOS).');
+    }
+  } else if(isAndroid){
+    log('in','   Android: system Location Services must be ON for BLE scanning.');
+  }
+  if(navigator.bluetooth&&navigator.bluetooth.getAvailability){
+    try{ log('in','   adapter       = '+(await navigator.bluetooth.getAvailability()?'available':'UNAVAILABLE')); }catch(e){}
+  }
+  if(!$('keyIn').value.trim())
+    log('in','   no key set — use “Pair with purifier”');
+})();
+
+</script>
+</body>
+</html>
